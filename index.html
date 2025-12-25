@@ -520,19 +520,49 @@
             return costs[s2.length];
         }
         
-        // Find best matching word from correct text
-        function findBestMatch(word, correctWords, usedIndices) {
-            let bestMatch = { index: -1, similarity: 0, word: '' };
-            
-            for (let i = 0; i < correctWords.length; i++) {
+        // Find best matching word with positional awareness
+        // Prioritizes forward matches (normal recitation flow) but allows high-similarity backward matches (contemplative repeats)
+        function findBestMatchFromPosition(word, correctWords, usedIndices, lastMatchedIndex) {
+            let bestMatch = { index: -1, similarity: 0, word: '', isContemplativeRepeat: false };
+            const startPos = lastMatchedIndex + 1;
+
+            // Priority 1: Check next 5 positions first (most likely - normal flow)
+            for (let i = startPos; i < Math.min(startPos + 5, correctWords.length); i++) {
                 if (usedIndices.has(i)) continue;
-                
+
                 const sim = similarity(word, correctWords[i]);
                 if (sim > bestMatch.similarity) {
-                    bestMatch = { index: i, similarity: sim, word: correctWords[i] };
+                    bestMatch = { index: i, similarity: sim, word: correctWords[i], isContemplativeRepeat: false };
                 }
             }
-            
+
+            // If found a good match nearby, return it
+            if (bestMatch.similarity >= 0.55) {
+                return bestMatch;
+            }
+
+            // Priority 2: Continue searching forward through rest of text
+            for (let i = startPos + 5; i < correctWords.length; i++) {
+                if (usedIndices.has(i)) continue;
+
+                const sim = similarity(word, correctWords[i]);
+                if (sim > bestMatch.similarity) {
+                    bestMatch = { index: i, similarity: sim, word: correctWords[i], isContemplativeRepeat: false };
+                }
+            }
+
+            // Priority 3: Look backward only for very high similarity (contemplative repeats)
+            // This allows users to repeat words/phrases for reflection without penalty
+            if (bestMatch.similarity < 0.85) {
+                for (let i = 0; i < startPos; i++) {
+                    const sim = similarity(word, correctWords[i]);
+                    // Very high threshold for backward matches - must be almost perfect
+                    if (sim >= 0.85 && sim > bestMatch.similarity) {
+                        bestMatch = { index: i, similarity: sim, word: correctWords[i], isContemplativeRepeat: true };
+                    }
+                }
+            }
+
             return bestMatch;
         }
         
@@ -552,15 +582,11 @@
             
             let correctCount = 0;
             let partialCount = 0;
-            let repeatedCount = 0;
-            const matchedWords = new Map();
+            let contemplativeCount = 0;
+            const usedIndices = new Set(); // Track which correct words have been matched
+            let lastMatchedIndex = -1; // Track position for sequential matching
             const SIMILARITY_THRESHOLD = 0.55; // Lowered from 0.7 - more forgiving for pronunciation
             const HIGH_SIMILARITY = 0.75; // Lowered from 0.9 - account for tajweed variations
-            
-            // Initialize match counter for each correct word
-            correctWords.forEach((word, i) => {
-                matchedWords.set(i, 0);
-            });
             
             // Build ayah structure from current selection
             const surahId = document.getElementById('surah-select').value;
@@ -586,28 +612,37 @@
             
             console.log("Ayah structure:", ayahStructure);
             
-            // First pass: Match transcribed words to correct words
+            // First pass: Match transcribed words to correct words (sequential matching with contemplative repeat support)
             const transcribedMatches = [];
             transcribedWords.forEach((transWord, i) => {
-                const match = findBestMatch(transWord, correctWords, new Set());
-                
+                const match = findBestMatchFromPosition(transWord, correctWords, usedIndices, lastMatchedIndex);
+
                 if (match.similarity >= SIMILARITY_THRESHOLD) {
-                    const matchCount = matchedWords.get(match.index);
-                    matchedWords.set(match.index, matchCount + 1);
-                    
-                    transcribedMatches.push({
-                        correctIndex: match.index,
-                        transcribed: transWord,
-                        correct: match.word,
-                        similarity: match.similarity,
-                        isRepeat: matchCount > 0
-                    });
-                    
-                    if (matchCount === 0) {
+                    if (match.isContemplativeRepeat) {
+                        // User repeated a word/phrase for contemplation - this is OK!
+                        transcribedMatches.push({
+                            correctIndex: match.index,
+                            transcribed: transWord,
+                            correct: match.word,
+                            similarity: match.similarity,
+                            isContemplativeRepeat: true
+                        });
+                        contemplativeCount++;
+                        // Don't update lastMatchedIndex - we're still at the same position
+                    } else {
+                        // Normal forward progression
+                        usedIndices.add(match.index);
+                        lastMatchedIndex = match.index;
+
+                        transcribedMatches.push({
+                            correctIndex: match.index,
+                            transcribed: transWord,
+                            correct: match.word,
+                            similarity: match.similarity
+                        });
+
                         correctCount++;
                         if (match.similarity < HIGH_SIMILARITY) partialCount++;
-                    } else {
-                        repeatedCount++;
                     }
                 } else if (match.similarity > 0.4) {
                     transcribedMatches.push({
@@ -636,9 +671,9 @@
                 // Check if ANY word from this ayah is missing
                 let ayahWordsMatched = 0;
                 let ayahHasMissing = false;
-                
+
                 for (let i = ayah.startIndex; i <= ayah.endIndex; i++) {
-                    if (matchedWords.get(i) > 0) {
+                    if (usedIndices.has(i)) {
                         ayahWordsMatched++;
                     } else {
                         ayahHasMissing = true;
@@ -712,36 +747,48 @@
                 
                 comparisonResult.appendChild(ayahDiv);
             });
-            
-            // Show repeated words separately
-            if (repeatedCount > 0) {
-                const repeatedSection = document.createElement('div');
-                repeatedSection.style.marginTop = '20px';
-                repeatedSection.style.padding = '15px';
-                repeatedSection.style.background = '#e7f3ff';
-                repeatedSection.style.borderRadius = '8px';
-                
-                const repeatLabel = document.createElement('div');
-                repeatLabel.style.fontSize = '1em';
-                repeatLabel.style.fontWeight = 'bold';
-                repeatLabel.style.color = '#0d6efd';
-                repeatLabel.style.marginBottom = '10px';
-                repeatLabel.textContent = 'كلمات مكررة (لا تؤثر على النتيجة):';
-                repeatedSection.appendChild(repeatLabel);
-                
+
+            // Show contemplative repeats (words repeated for reflection - not errors!)
+            if (contemplativeCount > 0) {
+                const contemplativeSection = document.createElement('div');
+                contemplativeSection.style.marginTop = '20px';
+                contemplativeSection.style.padding = '15px';
+                contemplativeSection.style.background = '#f0f9ff';
+                contemplativeSection.style.borderRadius = '8px';
+                contemplativeSection.style.border = '2px solid #3b82f6';
+
+                const contemplativeLabel = document.createElement('div');
+                contemplativeLabel.style.fontSize = '1em';
+                contemplativeLabel.style.fontWeight = 'bold';
+                contemplativeLabel.style.color = '#1e40af';
+                contemplativeLabel.style.marginBottom = '10px';
+                contemplativeLabel.textContent = '✨ كلمات مكررة للتأمل (ماشاء الله):';
+                contemplativeSection.appendChild(contemplativeLabel);
+
+                const noteDiv = document.createElement('div');
+                noteDiv.style.fontSize = '0.9em';
+                noteDiv.style.color = '#475569';
+                noteDiv.style.marginBottom = '10px';
+                noteDiv.style.fontStyle = 'italic';
+                noteDiv.textContent = 'تكرار الكلمات للتأمل والتدبر أمر محمود ولا يُحسب خطأ';
+                contemplativeSection.appendChild(noteDiv);
+
                 transcribedMatches.forEach(match => {
-                    if (match.isRepeat) {
+                    if (match.isContemplativeRepeat) {
                         const span = document.createElement('span');
-                        span.className = 'word repeat';
-                        span.textContent = match.correct + ' 🔁';
-                        span.title = 'تكرار - لا يؤثر على النتيجة';
-                        repeatedSection.appendChild(span);
+                        span.className = 'word';
+                        span.style.background = '#dbeafe';
+                        span.style.color = '#1e40af';
+                        span.style.border = '2px solid #3b82f6';
+                        span.textContent = match.correct + ' 🤲';
+                        span.title = 'تكرار للتأمل - ماشاء الله';
+                        contemplativeSection.appendChild(span);
                     }
                 });
-                
-                comparisonResult.appendChild(repeatedSection);
+
+                comparisonResult.appendChild(contemplativeSection);
             }
-            
+
             // Show extra or wrong words
             const extraMatches = transcribedMatches.filter(m => m.isExtra || m.isWrong);
             if (extraMatches.length > 0) {
@@ -778,14 +825,14 @@
             const totalAyahs = ayahStructure.length;
             const completeAyahs = ayahStructure.filter(ayah => {
                 for (let i = ayah.startIndex; i <= ayah.endIndex; i++) {
-                    if (matchedWords.get(i) === 0) return false;
+                    if (!usedIndices.has(i)) return false;
                 }
                 return true;
             }).length;
             
             const missingAyahs = ayahStructure.filter(ayah => {
                 for (let i = ayah.startIndex; i <= ayah.endIndex; i++) {
-                    if (matchedWords.get(i) > 0) return false;
+                    if (usedIndices.has(i)) return false;
                 }
                 return true;
             }).length;
@@ -845,7 +892,7 @@
                 <div style="margin-top: 15px; font-size: 0.9em; color: #666; border-top: 1px solid #ddd; padding-top: 15px;">
                     ${correctCount} من ${correctWords.length} كلمة صحيحة
                     ${missingAyahs > 0 ? ` • ${missingAyahs} آية مفقودة` : ''}
-                    ${repeatedCount > 0 ? ` • ${repeatedCount} كلمة مكررة` : ''}
+                    ${contemplativeCount > 0 ? ` • ${contemplativeCount} تكرار للتأمل ✨` : ''}
                     ${partialCount > 0 ? ` • ${partialCount} كلمة مع اختلافات نطق` : ''}
                 </div>
             `;
