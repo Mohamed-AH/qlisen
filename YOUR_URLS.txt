@@ -1,0 +1,102 @@
+╔════════════════════════════════════════════════════════════╗
+║                 📱 YOUR MOBILE SETUP IS READY! 🎉          ║
+╚════════════════════════════════════════════════════════════╝
+
+✅ BACKEND: Running on port 5001
+✅ NGROK: Connected
+✅ FRONTEND: Running on port 8000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📱 STEP-BY-STEP FOR MOBILE TESTING:
+
+STEP 1: Make sure your mobile is on the SAME WiFi as this computer
+
+STEP 2: On your mobile browser, open this URL:
+
+   ┌─────────────────────────────────────────────────────┐
+   │  http://21.0.0.10:8000/quran-full.html            │
+   └─────────────────────────────────────────────────────┘
+
+STEP 3: When the page loads, you'll see a configuration section.
+        Paste this URL in the input field:
+
+   ┌─────────────────────────────────────────────────────┐
+   │  https://blandishingly-retractile-wilson.ngrok-free.dev  │
+   └─────────────────────────────────────────────────────┘
+
+STEP 4: Click the "حفظ" (Save) button
+
+STEP 5: If ngrok asks "You are about to visit", click "Visit Site"
+
+STEP 6: Click "🎤 استمع" (Listen) and allow microphone permission
+
+STEP 7: Start reciting any Quranic verse!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💻 FOR DESKTOP TESTING (this computer):
+
+   Open in browser:
+   http://localhost:8000/quran-full.html
+
+   Then set API URL to:
+   http://localhost:5001
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🧪 TEST VERSES (try these for best results):
+
+   Al-Fatiha:
+   بسم الله الرحمن الرحيم الحمد لله رب العالمين
+
+   Al-Ikhlas:
+   قل هو الله أحد الله الصمد لم يلد ولم يولد
+
+   Ayat al-Kursi:
+   الله لا إله إلا هو الحي القيوم
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 TROUBLESHOOTING:
+
+   ❌ Can't access page from mobile?
+      → Check both devices are on same WiFi
+      → Try http://21.0.0.10:8000/quran-full.html again
+
+   ❌ "You are about to visit" warning from ngrok?
+      → This is normal for free ngrok accounts
+      → Just click "Visit Site"
+
+   ❌ Microphone not working?
+      → Use Chrome or Safari on mobile
+      → Make sure you allow microphone permission
+      → Try reloading the page
+
+   ❌ Position not detected?
+      → Speak clearly and loudly
+      → Recite at least 5-7 words
+      → Wait 3 seconds for detection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🛑 TO STOP ALL SERVICES:
+
+   Press Ctrl+C in each terminal, OR run:
+   ./stop-all.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ WHAT TO EXPECT:
+
+When working correctly, you should see:
+- ✅ Position indicator with gold background
+- ✅ Surah name in Arabic and English
+- ✅ Ayah, Page, Juz numbers
+- ✅ Confidence score (50-100%)
+- ✅ Arabic verses displayed below
+- ✅ Live stats updating
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+بارك الله فيك - Happy testing! 🎉
