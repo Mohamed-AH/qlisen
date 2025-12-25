@@ -20,6 +20,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Runtime files
+*.pid
+
 # Build outputs
 dist/
 build/
