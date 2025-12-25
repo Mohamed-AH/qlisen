@@ -69,17 +69,22 @@ echo ""
 # Step 3: Start HTTP server for frontend
 echo -e "${YELLOW}Step 3: Starting frontend server...${NC}"
 
-# Kill any existing Python server on port 8000
-lsof -ti:8000 | xargs kill -9 2>/dev/null
+# Kill any existing Python server on port 8000 (if lsof exists)
+if command -v lsof &> /dev/null; then
+    lsof -ti:8000 | xargs kill -9 2>/dev/null
+else
+    pkill -f "python3 -m http.server 8000" 2>/dev/null
+fi
 
-cd /home/user/qlisen
+cd /home/user/qlisen 2>/dev/null || cd "$(dirname "$0")"
 python3 -m http.server 8000 > frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo $FRONTEND_PID > frontend.pid
 
 sleep 2
 
-if lsof -i:8000 > /dev/null 2>&1; then
+# Check if server is running
+if curl -s http://localhost:8000 > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Frontend server started on port 8000${NC}"
 else
     echo -e "${RED}✗ Failed to start frontend server${NC}"
