@@ -28,4 +28,4 @@
         -H "Content-Type: application/json" \
         -d '{"transcript":"بسم الله الرحمن الرحيم"}'
 
-2025-12-25T15:41:40.048Z - GET /health
+2025-12-25T16:02:35.424Z - GET /health
