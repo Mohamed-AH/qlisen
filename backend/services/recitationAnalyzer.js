@@ -110,7 +110,7 @@ class RecitationAnalyzer {
         // Check for ambiguous detection (multiple surahs)
         const ambiguous = secondScore >= 0.60 && (topScore - secondScore) < 0.15;
 
-        if (topScore < 0.30) {
+        if (topScore < 0.25) {
             return {
                 success: false,
                 error: 'low_confidence',
