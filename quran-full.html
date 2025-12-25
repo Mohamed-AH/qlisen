@@ -103,6 +103,10 @@
         .controls {
             text-align: center;
             margin: 30px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
         }
 
         button {
@@ -115,7 +119,7 @@
             border-radius: 50px;
             cursor: pointer;
             transition: all 0.3s;
-            margin: 0 10px;
+            margin: 0;
             box-shadow: 0 5px 20px rgba(212, 175, 55, 0.4);
         }
 
@@ -539,6 +543,9 @@
                 <button id="listen-btn" onclick="toggleListening()">
                     🎤 استمع
                 </button>
+                <button onclick="exportLogs()" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); font-size: 16px; padding: 12px 30px;">
+                    📋 تصدير السجلات
+                </button>
             </div>
 
             <div id="error-container"></div>
@@ -594,6 +601,125 @@
     </footer>
 
     <script>
+        // Console log collector for mobile debugging
+        const logHistory = [];
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+
+        console.log = function(...args) {
+            logHistory.push({ type: 'log', time: new Date().toISOString(), args });
+            originalConsoleLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            logHistory.push({ type: 'error', time: new Date().toISOString(), args });
+            originalConsoleError.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+            logHistory.push({ type: 'warn', time: new Date().toISOString(), args });
+            originalConsoleWarn.apply(console, args);
+        };
+
+        // Export logs function
+        function exportLogs() {
+            let logText = '=== CONSOLE LOGS ===\n\n';
+
+            for (const entry of logHistory) {
+                const timestamp = new Date(entry.time).toLocaleTimeString();
+                const type = entry.type.toUpperCase();
+                const message = entry.args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try {
+                            return JSON.stringify(arg, null, 2);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }
+                    return String(arg);
+                }).join(' ');
+
+                logText += `[${timestamp}] ${type}: ${message}\n`;
+            }
+
+            // Create modal to display logs
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.8);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                border-radius: 10px;
+                padding: 20px;
+                max-width: 90%;
+                max-height: 80%;
+                overflow: auto;
+                direction: ltr;
+            `;
+
+            const title = document.createElement('h3');
+            title.textContent = 'Console Logs';
+            title.style.cssText = 'margin-bottom: 10px; color: #0a3a2a;';
+
+            const textarea = document.createElement('textarea');
+            textarea.value = logText;
+            textarea.style.cssText = `
+                width: 100%;
+                height: 400px;
+                font-family: monospace;
+                font-size: 12px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                padding: 10px;
+                direction: ltr;
+                text-align: left;
+            `;
+            textarea.readOnly = true;
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.cssText = 'margin-top: 15px; display: flex; gap: 10px;';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = 'Copy to Clipboard';
+            copyBtn.style.cssText = 'flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;';
+            copyBtn.onclick = () => {
+                textarea.select();
+                document.execCommand('copy');
+                copyBtn.textContent = '✓ Copied!';
+                setTimeout(() => copyBtn.textContent = 'Copy to Clipboard', 2000);
+            };
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = 'Close';
+            closeBtn.style.cssText = 'flex: 1; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;';
+            closeBtn.onclick = () => document.body.removeChild(modal);
+
+            buttonContainer.appendChild(copyBtn);
+            buttonContainer.appendChild(closeBtn);
+
+            content.appendChild(title);
+            content.appendChild(textarea);
+            content.appendChild(buttonContainer);
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            // Auto-select text for easy copying
+            textarea.select();
+        }
+
         // Configuration - can be set via URL parameter or localStorage
         let API_URL = localStorage.getItem('apiUrl') || 'http://localhost:5001';
         const DETECTION_INTERVAL = 3000; // Detect position every 3 seconds
