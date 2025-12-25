@@ -22,7 +22,7 @@ if curl -s http://localhost:5001/health > /dev/null 2>&1; then
 else
     echo -e "${YELLOW}→ Starting backend server...${NC}"
     cd /home/user/qlisen
-    node backend/test-server.js > backend.log 2>&1 &
+    node backend/test-server.js > backend-output.txt 2>&1 &
     BACKEND_PID=$!
     echo $BACKEND_PID > backend.pid
     sleep 3
@@ -77,7 +77,7 @@ else
 fi
 
 cd /home/user/qlisen 2>/dev/null || cd "$(dirname "$0")"
-python3 -m http.server 8000 > frontend.log 2>&1 &
+python3 -m http.server 8000 > frontend-output.txt 2>&1 &
 FRONTEND_PID=$!
 echo $FRONTEND_PID > frontend.pid
 
@@ -120,8 +120,8 @@ echo -e "      ${YELLOW}http://localhost:8000/quran-full.html${NC}"
 echo ""
 echo -e "${BLUE}📊 Monitoring:${NC}"
 echo ""
-echo -e "   Backend logs:  ${YELLOW}tail -f /home/user/qlisen/backend.log${NC}"
-echo -e "   Frontend logs: ${YELLOW}tail -f /home/user/qlisen/frontend.log${NC}"
+echo -e "   Backend logs:  ${YELLOW}tail -f /home/user/qlisen/backend-output.txt${NC}"
+echo -e "   Frontend logs: ${YELLOW}tail -f /home/user/qlisen/frontend-output.txt${NC}"
 echo -e "   ngrok dashboard: ${YELLOW}http://localhost:4040${NC}"
 echo ""
 echo -e "${BLUE}🛑 To stop all services:${NC}"
