@@ -315,6 +315,25 @@
             <p class="subtitle">Hafiz - Full Quran Recitation Tracker</p>
         </header>
 
+        <div class="card" id="config-card" style="display: none;">
+            <h2 style="color: #0a3a2a; margin-bottom: 20px; text-align: center;">⚙️ إعدادات الاتصال</h2>
+            <p style="text-align: center; margin-bottom: 15px; color: #666;">
+                أدخل رابط الخادم (ngrok أو localhost):
+            </p>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                <input type="text" id="api-url-input"
+                    placeholder="https://your-ngrok-url.ngrok.io"
+                    style="flex: 1; padding: 12px; border: 2px solid #d4af37; border-radius: 8px; font-size: 16px; direction: ltr; text-align: left;"
+                    value="">
+                <button onclick="updateApiUrl()" style="padding: 12px 24px; white-space: nowrap;">
+                    حفظ
+                </button>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #999;">
+                Current: <span id="current-api-url" style="color: #0a3a2a; font-weight: bold; direction: ltr; display: inline-block;"></span>
+            </p>
+        </div>
+
         <div class="card">
             <div id="position-indicator" class="hidden">
                 <div class="position-indicator">
@@ -398,10 +417,17 @@
     </footer>
 
     <script>
-        // Configuration
-        const API_URL = 'http://localhost:5001';
+        // Configuration - can be set via URL parameter or localStorage
+        let API_URL = localStorage.getItem('apiUrl') || 'http://localhost:5001';
         const DETECTION_INTERVAL = 3000; // Detect position every 3 seconds
         const MIN_WORDS_FOR_DETECTION = 5; // Minimum words before trying detection
+
+        // Check for URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('apiUrl')) {
+            API_URL = urlParams.get('apiUrl');
+            localStorage.setItem('apiUrl', API_URL);
+        }
 
         // State
         let recognition = null;
@@ -677,21 +703,61 @@
             }, 5000);
         }
 
+        // Update API URL
+        function updateApiUrl() {
+            const input = document.getElementById('api-url-input');
+            let newUrl = input.value.trim();
+
+            // Remove trailing slash
+            if (newUrl.endsWith('/')) {
+                newUrl = newUrl.slice(0, -1);
+            }
+
+            API_URL = newUrl;
+            localStorage.setItem('apiUrl', API_URL);
+
+            document.getElementById('current-api-url').textContent = API_URL;
+
+            showError('تم تحديث رابط الخادم. جاري الاتصال...');
+            setTimeout(() => {
+                checkBackendStatus();
+            }, 500);
+        }
+
         // Check Backend Status on Load
         async function checkBackendStatus() {
             try {
-                const response = await fetch(`${API_URL}/health`);
+                const response = await fetch(`${API_URL}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                });
                 const data = await response.json();
 
                 if (data.status === 'ok') {
                     console.log('✅ Backend is ready');
                     console.log(`📖 ${data.quranData.verses} verses loaded`);
+                    document.getElementById('config-card').style.display = 'none';
+                    document.getElementById('current-api-url').textContent = API_URL;
                 } else {
                     showError('الخادم غير جاهز. تأكد من تشغيله أولاً.');
+                    showConfigCard();
                 }
             } catch (error) {
-                showError('لم يتم الاتصال بالخادم. تأكد من تشغيل: node backend/test-server.js');
+                console.error('Backend connection error:', error);
+                showError('لم يتم الاتصال بالخادم. الرجاء تحديث رابط الخادم أدناه.');
+                showConfigCard();
             }
+        }
+
+        function showConfigCard() {
+            const configCard = document.getElementById('config-card');
+            const apiUrlInput = document.getElementById('api-url-input');
+
+            configCard.style.display = 'block';
+            apiUrlInput.value = API_URL;
+            document.getElementById('current-api-url').textContent = API_URL;
         }
 
         // Initialize on page load
