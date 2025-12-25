@@ -794,9 +794,11 @@
             // Update status with success
             updateStatus('success', `✅ تم التحليل بنجاح - ${summary.primarySurah.name}`);
 
-            // Hide real-time position display
-            document.getElementById('position-container').classList.add('hidden');
-            document.getElementById('verse-container').classList.add('hidden');
+            // Hide verse container if it exists
+            const verseContainer = document.getElementById('verse-container');
+            if (verseContainer) {
+                verseContainer.classList.add('hidden');
+            }
 
             // Show analysis report
             const reportContainer = document.getElementById('analysis-report');
