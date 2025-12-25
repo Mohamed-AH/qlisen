@@ -202,40 +202,86 @@ class RecitationAnalyzer {
      * Detect which verses were actually recited (find the continuous range)
      */
     detectVerseRange(alignments) {
-        // Find all verses with significant matches (accuracy >= 20%)
+        // Find all verses with significant matches (accuracy >= 50%)
         const significantVerses = alignments
-            .filter(a => a.accuracy >= 0.20)
-            .map(a => a.ayah)
-            .sort((a, b) => a - b);
+            .filter(a => a.accuracy >= 0.50)
+            .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
+            .sort((a, b) => a.ayah - b.ayah);
 
         if (significantVerses.length === 0) {
-            // No significant matches, use first verse as fallback
-            return {
-                startVerse: alignments[0]?.ayah || 1,
-                endVerse: alignments[0]?.ayah || 1,
-                versesInRange: 1
-            };
+            // No significant matches at 50%, try 40%
+            const moderateVerses = alignments
+                .filter(a => a.accuracy >= 0.40)
+                .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
+                .sort((a, b) => a.ayah - b.ayah);
+
+            if (moderateVerses.length === 0) {
+                // Still nothing, use highest accuracy verse
+                const sorted = alignments
+                    .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
+                    .sort((a, b) => b.accuracy - a.accuracy);
+
+                return {
+                    startVerse: sorted[0]?.ayah || 1,
+                    endVerse: sorted[0]?.ayah || 1,
+                    versesInRange: 1
+                };
+            }
+
+            return this.findBestRange(moderateVerses);
         }
 
-        // Find the continuous range with most verses
-        let bestRange = { start: significantVerses[0], end: significantVerses[0], count: 1 };
-        let currentRange = { start: significantVerses[0], end: significantVerses[0], count: 1 };
+        return this.findBestRange(significantVerses);
+    }
+
+    /**
+     * Find the best continuous range from significant verses
+     */
+    findBestRange(significantVerses) {
+        // Find the continuous range with highest average accuracy
+        let bestRange = {
+            start: significantVerses[0].ayah,
+            end: significantVerses[0].ayah,
+            count: 1,
+            avgAccuracy: significantVerses[0].accuracy
+        };
+
+        let currentRange = {
+            start: significantVerses[0].ayah,
+            end: significantVerses[0].ayah,
+            count: 1,
+            totalAccuracy: significantVerses[0].accuracy
+        };
 
         for (let i = 1; i < significantVerses.length; i++) {
             const verse = significantVerses[i];
             const prevVerse = significantVerses[i - 1];
 
-            // If within 3 verses of previous, extend current range
-            if (verse - prevVerse <= 3) {
-                currentRange.end = verse;
+            // If within 2 verses of previous, extend current range
+            if (verse.ayah - prevVerse.ayah <= 2) {
+                currentRange.end = verse.ayah;
                 currentRange.count = currentRange.end - currentRange.start + 1;
+                currentRange.totalAccuracy += verse.accuracy;
+                const avgAccuracy = currentRange.totalAccuracy / currentRange.count;
 
-                if (currentRange.count > bestRange.count) {
-                    bestRange = { ...currentRange };
+                // Update best if this range has more verses OR similar count but better accuracy
+                if (currentRange.count > bestRange.count ||
+                    (currentRange.count === bestRange.count && avgAccuracy > bestRange.avgAccuracy)) {
+                    bestRange = {
+                        start: currentRange.start,
+                        end: currentRange.end,
+                        count: currentRange.count,
+                        avgAccuracy
+                    };
                 }
             } else {
                 // Gap too large, start new range
-                currentRange = { start: verse, end: verse, count: 1 };
+                currentRange = {
+                    start: verse.ayah,
+                    end: verse.ayah,
+                    count: 1,
+                    totalAccuracy: verse.accuracy
+                };
             }
         }
 
