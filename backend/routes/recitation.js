@@ -38,10 +38,25 @@ router.post('/detect-position', authenticateJWT, async (req, res) => {
             });
         }
 
+        // Log incoming transcript for debugging
+        console.log('\n🎤 DETECTION REQUEST:');
+        console.log('   Transcript:', transcript);
+        console.log('   Length:', transcript.length, 'chars');
+        console.log('   Words:', transcript.split(/\s+/).length);
+
         const position = await quranService.detectPosition(
             transcript,
             lastKnownPosition
         );
+
+        // Log detection result
+        if (position.detected) {
+            console.log('✅ DETECTED:', position.position.surahName,
+                       'Ayah', position.position.ayahStart,
+                       'Confidence:', (position.confidence * 100).toFixed(1) + '%');
+        } else {
+            console.log('❌ NOT DETECTED');
+        }
 
         res.json({
             success: true,

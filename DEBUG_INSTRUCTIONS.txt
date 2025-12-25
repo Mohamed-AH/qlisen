@@ -1,0 +1,54 @@
+╔════════════════════════════════════════════════════════════╗
+║           🐛 DEBUG MODE ACTIVATED                          ║
+╚════════════════════════════════════════════════════════════╝
+
+✅ Backend restarted with debug logging
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📱 NEXT STEPS TO DEBUG:
+
+1. Try reciting again on your mobile
+
+2. While you're reciting, I'll be watching the logs to see:
+   ✓ Is your mobile app sending requests?
+   ✓ What text is the speech recognition producing?
+   ✓ Why is the confidence 0%?
+
+3. After you try reciting one surah, tell me and I'll check the logs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎤 TIPS FOR BEST RESULTS:
+
+• Speak CLEARLY and LOUDLY
+• Recite at least 7-10 words
+• Wait 3-4 seconds after reciting
+• Try these well-known verses:
+
+  Al-Fatiha (easiest to detect):
+  بسم الله الرحمن الرحيم الحمد لله رب العالمين الرحمن الرحيم
+
+  Al-Ikhlas (very distinct):
+  قل هو الله أحد الله الصمد لم يلد ولم يولد
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 ON YOUR MOBILE SCREEN:
+
+Look for:
+• Does the transcript box show Arabic text?
+• Does it match what you said?
+• Is the status changing to "جاري تحديد موضعك"?
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 IMPORTANT:
+
+The transcript box (📝 ما تم سماعه) should show what the
+speech recognition heard. If it's empty or wrong, that's our problem!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ready! Try reciting now and let me know what you see in the
+transcript box!
