@@ -633,26 +633,34 @@
             recognition.maxAlternatives = 1;
 
             recognition.onstart = () => {
-                console.log('Speech recognition started');
+                console.log('🎤 Speech recognition started');
+                console.log('   Language:', recognition.lang);
+                console.log('   Continuous:', recognition.continuous);
+                console.log('   Interim results:', recognition.interimResults);
                 updateStatus('listening', 'جاري الاستماع... تلُ القرآن بصوت واضح');
             };
 
             recognition.onresult = (event) => {
+                console.log('Speech recognition result:', event.results.length, 'results');
                 let interimTranscript = '';
                 let finalTranscript = '';
 
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcriptPiece = event.results[i][0].transcript;
+                    console.log(`  Result ${i}: "${transcriptPiece}" (final: ${event.results[i].isFinal})`);
+
                     if (event.results[i].isFinal) {
                         finalTranscript += transcriptPiece + ' ';
                     } else {
-                        interimTranscript += transcriptPiece;
+                        interimTranscript += transcriptPiece + ' ';
                     }
                 }
 
                 if (finalTranscript) {
                     transcript += finalTranscript;
-                    transcriptWords = transcript.trim().split(/\s+/);
+                    transcriptWords = transcript.trim().split(/\s+/).filter(w => w.length > 0);
+                    console.log('Updated transcript:', transcript);
+                    console.log('Word count:', transcriptWords.length);
                     updateTranscriptDisplay();
                     updateStats();
                 }
@@ -676,9 +684,14 @@
             };
 
             recognition.onend = () => {
-                console.log('Speech recognition ended');
+                console.log('🔚 Speech recognition ended');
+                console.log('   isListening:', isListening);
+                console.log('   Transcript so far:', transcript);
+                console.log('   Word count:', transcriptWords.length);
+
                 if (isListening) {
                     // Restart if we're still supposed to be listening
+                    console.log('   → Restarting recognition...');
                     recognition.start();
                 }
             };
@@ -720,6 +733,10 @@
         }
 
         function stopListening() {
+            console.log('🛑 Stopping listening...');
+            console.log('   Current transcript:', transcript);
+            console.log('   Word count:', transcriptWords.length);
+
             isListening = false;
             const btn = document.getElementById('listen-btn');
 
@@ -730,8 +747,12 @@
                 recognition.stop();
             }
 
-            // Trigger full analysis
-            analyzeFullRecitation();
+            // Wait a moment for final recognition results, then analyze
+            setTimeout(() => {
+                console.log('📊 Final transcript before analysis:', transcript);
+                console.log('   Final word count:', transcriptWords.length);
+                analyzeFullRecitation();
+            }, 500);
         }
 
         // Analyze Full Recitation (Post-Processing)
