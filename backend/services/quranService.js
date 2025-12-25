@@ -74,6 +74,7 @@ class QuranService {
     /**
      * Detect Quran position from transcript
      * Uses n-gram matching for fast, accurate position detection
+     * Now supports detecting verse ranges for continuous recitation
      */
     async detectPosition(transcript, lastKnownPosition = null) {
         if (!this.isInitialized) {
@@ -117,31 +118,45 @@ class QuranService {
             };
         }
 
-        // Find best match (most consecutive n-gram matches)
-        let bestVerseId = -1;
-        let bestScore = 0;
+        // Sort candidates by verse ID to find consecutive sequences
+        const sortedCandidates = Array.from(candidates.entries())
+            .sort((a, b) => a[0] - b[0]); // Sort by verse ID
 
-        for (const [verseId, score] of candidates.entries()) {
-            // Prefer sequential matches if we have lastKnownPosition
-            if (lastKnownPosition && this.quranData[verseId]) {
-                const verse = this.quranData[verseId];
-                const isSequential = verse.page >= lastKnownPosition.page;
-                const adjustedScore = isSequential ? score * 1.2 : score; // Boost sequential matches
+        // Find the best consecutive sequence of verses
+        let bestSequence = { start: -1, end: -1, totalScore: 0 };
+        let currentSequence = { start: -1, end: -1, totalScore: 0 };
 
-                if (adjustedScore > bestScore) {
-                    bestScore = adjustedScore;
-                    bestVerseId = verseId;
-                }
+        for (let i = 0; i < sortedCandidates.length; i++) {
+            const [verseId, score] = sortedCandidates[i];
+
+            // Start new sequence or continue existing one
+            if (currentSequence.start === -1) {
+                // Start new sequence
+                currentSequence = { start: verseId, end: verseId, totalScore: score };
+            } else if (verseId <= currentSequence.end + 3) {
+                // Continue sequence (allow small gaps of up to 3 verses)
+                currentSequence.end = verseId;
+                currentSequence.totalScore += score;
             } else {
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestVerseId = verseId;
+                // Sequence broken, check if it's the best so far
+                if (currentSequence.totalScore > bestSequence.totalScore) {
+                    bestSequence = { ...currentSequence };
                 }
+                // Start new sequence
+                currentSequence = { start: verseId, end: verseId, totalScore: score };
             }
         }
 
-        const verse = this.quranData[bestVerseId];
-        if (!verse) {
+        // Check final sequence
+        if (currentSequence.totalScore > bestSequence.totalScore) {
+            bestSequence = { ...currentSequence };
+        }
+
+        // Use the first verse of the best sequence
+        const startVerse = this.quranData[bestSequence.start];
+        const endVerse = this.quranData[bestSequence.end];
+
+        if (!startVerse || !endVerse) {
             return {
                 detected: false,
                 confidence: 0,
@@ -149,28 +164,53 @@ class QuranService {
             };
         }
 
-        // Calculate confidence (percentage of n-grams matched)
-        const confidence = Math.min(bestScore / ngrams.length, 1.0);
+        // Calculate confidence - smarter algorithm that accounts for:
+        // 1. N-gram match rate (raw accuracy)
+        // 2. Number of verses detected (sequence length bonus)
+        // 3. Speech recognition tolerance (lower threshold)
+
+        const rawConfidence = bestSequence.totalScore / ngrams.length;
+        const versesInSequence = bestSequence.end - bestSequence.start + 1;
+
+        // Boost confidence based on sequence length
+        // - Single verse: no boost
+        // - 2-3 verses: 1.5x boost
+        // - 4+ verses: 2.0x boost (strong indicator of correct detection)
+        let sequenceBoost = 1.0;
+        if (versesInSequence >= 4) {
+            sequenceBoost = 2.0;
+        } else if (versesInSequence >= 2) {
+            sequenceBoost = 1.5;
+        }
+
+        // Apply boost and cap at 1.0
+        const confidence = Math.min(rawConfidence * sequenceBoost, 1.0);
 
         // Get surah info
-        const surahInfo = this.metadata.surahs.find(s => s.id === verse.surah);
+        const surahInfo = this.metadata.surahs.find(s => s.id === startVerse.surah);
 
         return {
             detected: true,
             confidence: Math.round(confidence * 100) / 100,
             position: {
-                page: verse.page,
-                juz: verse.juz,
-                surah: verse.surah,
-                surahName: verse.surahName,
-                surahNameEn: surahInfo?.nameEn || verse.surahNameEn,
-                ayahStart: verse.ayah,
-                ayahEnd: verse.ayah, // Single verse for now
+                page: startVerse.page,
+                juz: startVerse.juz,
+                surah: startVerse.surah,
+                surahName: startVerse.surahName,
+                surahNameEn: surahInfo?.nameEn || startVerse.surahNameEn,
+                ayahStart: startVerse.ayah,
+                ayahEnd: endVerse.ayah, // Now shows range!
                 wordStart: 0,
-                wordEnd: verse.wordCount - 1
+                wordEnd: endVerse.wordCount - 1
             },
-            matchedText: verse.text,
-            matchedVerseNormalized: verse.textNormalized
+            matchedText: startVerse.text,
+            matchedVerseNormalized: startVerse.textNormalized,
+            // Additional debug info
+            sequenceInfo: {
+                versesDetected: bestSequence.end - bestSequence.start + 1,
+                totalMatches: bestSequence.totalScore,
+                totalNgrams: ngrams.length
+            }
         };
     }
 
