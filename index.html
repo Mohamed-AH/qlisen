@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quran Recitation Checker</title>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .selection-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            background: white;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .verse-display {
+            background: #fff9e6;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-right: 4px solid #667eea;
+        }
+        
+        .verse-display h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .arabic-text {
+            font-size: 1.8em;
+            line-height: 2;
+            color: #333;
+            font-family: 'Traditional Arabic', 'Arial', sans-serif;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 10px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .recording {
+            background: #e74c3c;
+        }
+        
+        .recording:hover {
+            background: #c0392b;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .status.listening {
+            background: #ffe6e6;
+            color: #e74c3c;
+        }
+        
+        .status.processing {
+            background: #e6f3ff;
+            color: #3498db;
+        }
+        
+        .transcription-box {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .transcription-box h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .transcription-text {
+            font-size: 1.5em;
+            line-height: 1.8;
+            color: #555;
+            font-family: 'Traditional Arabic', 'Arial', sans-serif;
+        }
+        
+        .comparison-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .comparison-box h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .word {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 5px;
+            font-size: 1.5em;
+            font-family: 'Traditional Arabic', 'Arial', sans-serif;
+        }
+        
+        .word.correct {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .word.repeat {
+            background: #cfe2ff;
+            color: #084298;
+            border: 2px dashed #0d6efd;
+        }
+        
+        .word.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .word.missing {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-right: 4px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕌 تصحيح تلاوة القرآن</h1>
+        
+        <div class="info-box">
+            <strong>ملاحظة:</strong> هذا التطبيق يستخدم تقنية التعرف على الصوت في المتصفح. يعمل بشكل أفضل في متصفح Chrome أو Edge.
+        </div>
+        
+        <div class="selection-box">
+            <label for="surah-select">اختر السورة:</label>
+            <select id="surah-select">
+                <option value="">-- اختر السورة --</option>
+                <option value="1">الفاتحة</option>
+                <option value="67">الملك</option>
+                <option value="112">الإخلاص</option>
+                <option value="113">الفلق</option>
+                <option value="114">الناس</option>
+            </select>
+            
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
+                <div style="flex: 1;">
+                    <label for="ayah-start-select">من الآية:</label>
+                    <select id="ayah-start-select" disabled>
+                        <option value="">-- اختر --</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label for="ayah-end-select">إلى الآية:</label>
+                    <select id="ayah-end-select" disabled>
+                        <option value="">-- اختر --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 5px; font-size: 0.9em;">
+                💡 <strong>نصيحة:</strong> يمكنك اختيار آية واحدة (نفس الرقم في البداية والنهاية) أو نطاق من الآيات
+            </div>
+        </div>
+        
+        <div id="verse-container" style="display: none;">
+            <div class="verse-display">
+                <h3>النص الصحيح:</h3>
+                <div class="arabic-text" id="correct-text"></div>
+            </div>
+            
+            <div class="controls">
+                <button id="start-btn">🎤 ابدأ التسجيل</button>
+                <button id="stop-btn" style="display: none;" class="recording">⏹️ أوقف التسجيل</button>
+            </div>
+            
+            <div id="status" class="status" style="display: none;"></div>
+            
+            <div id="transcription-container" style="display: none;">
+                <div class="transcription-box">
+                    <h3>ما سمعته:</h3>
+                    <div class="transcription-text" id="transcription-text"></div>
+                </div>
+            </div>
+            
+            <div id="comparison-container" style="display: none;">
+                <div class="comparison-box">
+                    <h3>المقارنة:</h3>
+                    <div id="comparison-result"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="error-container"></div>
+    </div>
+
+    <script>
+        // Sample Quran verses data (you can expand this)
+        const quranData = {
+            "1": {
+                name: "الفاتحة",
+                verses: {
+                    "1": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                    "2": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ",
+                    "3": "الرَّحْمَٰنِ الرَّحِيمِ",
+                    "4": "مَالِكِ يَوْمِ الدِّينِ",
+                    "5": "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ",
+                    "6": "اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ",
+                    "7": "صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ"
+                }
+            },
+            "67": {
+                name: "الملك",
+                verses: {
+                    "1": "تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ",
+                    "2": "الَّذِي خَلَقَ الْمَوْتَ وَالْحَيَاةَ لِيَبْلُوَكُمْ أَيُّكُمْ أَحْسَنُ عَمَلًا وَهُوَ الْعَزِيزُ الْغَفُورُ",
+                    "3": "الَّذِي خَلَقَ سَبْعَ سَمَاوَاتٍ طِبَاقًا مَا تَرَىٰ فِي خَلْقِ الرَّحْمَٰنِ مِنْ تَفَاوُتٍ فَارْجِعِ الْبَصَرَ هَلْ تَرَىٰ مِنْ فُطُورٍ",
+                    "4": "ثُمَّ ارْجِعِ الْبَصَرَ كَرَّتَيْنِ يَنْقَلِبْ إِلَيْكَ الْبَصَرُ خَاسِئًا وَهُوَ حَسِيرٌ",
+                    "5": "وَلَقَدْ زَيَّنَّا السَّمَاءَ الدُّنْيَا بِمَصَابِيحَ وَجَعَلْنَاهَا رُجُومًا لِلشَّيَاطِينِ وَأَعْتَدْنَا لَهُمْ عَذَابَ السَّعِيرِ",
+                    "6": "وَلِلَّذِينَ كَفَرُوا بِرَبِّهِمْ عَذَابُ جَهَنَّمَ وَبِئْسَ الْمَصِيرُ",
+                    "7": "إِذَا أُلْقُوا فِيهَا سَمِعُوا لَهَا شَهِيقًا وَهِيَ تَفُورُ",
+                    "8": "تَكَادُ تَمَيَّزُ مِنَ الْغَيْظِ كُلَّمَا أُلْقِيَ فِيهَا فَوْجٌ سَأَلَهُمْ خَزَنَتُهَا أَلَمْ يَأْتِكُمْ نَذِيرٌ",
+                    "9": "قَالُوا بَلَىٰ قَدْ جَاءَنَا نَذِيرٌ فَكَذَّبْنَا وَقُلْنَا مَا نَزَّلَ اللَّهُ مِنْ شَيْءٍ إِنْ أَنْتُمْ إِلَّا فِي ضَلَالٍ كَبِيرٍ",
+                    "10": "وَقَالُوا لَوْ كُنَّا نَسْمَعُ أَوْ نَعْقِلُ مَا كُنَّا فِي أَصْحَابِ السَّعِيرِ",
+                    "11": "فَاعْتَرَفُوا بِذَنْبِهِمْ فَسُحْقًا لِأَصْحَابِ السَّعِيرِ",
+                    "12": "إِنَّ الَّذِينَ يَخْشَوْنَ رَبَّهُمْ بِالْغَيْبِ لَهُمْ مَغْفِرَةٌ وَأَجْرٌ كَبِيرٌ",
+                    "13": "وَأَسِرُّوا قَوْلَكُمْ أَوِ اجْهَرُوا بِهِ إِنَّهُ عَلِيمٌ بِذَاتِ الصُّدُورِ",
+                    "14": "أَلَا يَعْلَمُ مَنْ خَلَقَ وَهُوَ اللَّطِيفُ الْخَبِيرُ",
+                    "15": "هُوَ الَّذِي جَعَلَ لَكُمُ الْأَرْضَ ذَلُولًا فَامْشُوا فِي مَنَاكِبِهَا وَكُلُوا مِنْ رِزْقِهِ وَإِلَيْهِ النُّشُورُ",
+                    "16": "أَأَمِنْتُمْ مَنْ فِي السَّمَاءِ أَنْ يَخْسِفَ بِكُمُ الْأَرْضَ فَإِذَا هِيَ تَمُورُ",
+                    "17": "أَمْ أَمِنْتُمْ مَنْ فِي السَّمَاءِ أَنْ يُرْسِلَ عَلَيْكُمْ حَاصِبًا فَسَتَعْلَمُونَ كَيْفَ نَذِيرِ",
+                    "18": "وَلَقَدْ كَذَّبَ الَّذِينَ مِنْ قَبْلِهِمْ فَكَيْفَ كَانَ نَكِيرِ",
+                    "19": "أَوَلَمْ يَرَوْا إِلَى الطَّيْرِ فَوْقَهُمْ صَافَّاتٍ وَيَقْبِضْنَ مَا يُمْسِكُهُنَّ إِلَّا الرَّحْمَٰنُ إِنَّهُ بِكُلِّ شَيْءٍ بَصِيرٌ",
+                    "20": "أَمَّنْ هَٰذَا الَّذِي هُوَ جُنْدٌ لَكُمْ يَنْصُرُكُمْ مِنْ دُونِ الرَّحْمَٰنِ إِنِ الْكَافِرُونَ إِلَّا فِي غُرُورٍ",
+                    "21": "أَمَّنْ هَٰذَا الَّذِي يَرْزُقُكُمْ إِنْ أَمْسَكَ رِزْقَهُ بَلْ لَجُّوا فِي عُتُوٍّ وَنُفُورٍ",
+                    "22": "أَفَمَنْ يَمْشِي مُكِبًّا عَلَىٰ وَجْهِهِ أَهْدَىٰ أَمَّنْ يَمْشِي سَوِيًّا عَلَىٰ صِرَاطٍ مُسْتَقِيمٍ",
+                    "23": "قُلْ هُوَ الَّذِي أَنْشَأَكُمْ وَجَعَلَ لَكُمُ السَّمْعَ وَالْأَبْصَارَ وَالْأَفْئِدَةَ قَلِيلًا مَا تَشْكُرُونَ",
+                    "24": "قُلْ هُوَ الَّذِي ذَرَأَكُمْ فِي الْأَرْضِ وَإِلَيْهِ تُحْشَرُونَ",
+                    "25": "وَيَقُولُونَ مَتَىٰ هَٰذَا الْوَعْدُ إِنْ كُنْتُمْ صَادِقِينَ",
+                    "26": "قُلْ إِنَّمَا الْعِلْمُ عِنْدَ اللَّهِ وَإِنَّمَا أَنَا نَذِيرٌ مُبِينٌ",
+                    "27": "فَلَمَّا رَأَوْهُ زُلْفَةً سِيئَتْ وُجُوهُ الَّذِينَ كَفَرُوا وَقِيلَ هَٰذَا الَّذِي كُنْتُمْ بِهِ تَدَّعُونَ",
+                    "28": "قُلْ أَرَأَيْتُمْ إِنْ أَهْلَكَنِيَ اللَّهُ وَمَنْ مَعِيَ أَوْ رَحِمَنَا فَمَنْ يُجِيرُ الْكَافِرِينَ مِنْ عَذَابٍ أَلِيمٍ",
+                    "29": "قُلْ هُوَ الرَّحْمَٰنُ آمَنَّا بِهِ وَعَلَيْهِ تَوَكَّلْنَا فَسَتَعْلَمُونَ مَنْ هُوَ فِي ضَلَالٍ مُبِينٍ",
+                    "30": "قُلْ أَرَأَيْتُمْ إِنْ أَصْبَحَ مَاؤُكُمْ غَوْرًا فَمَنْ يَأْتِيكُمْ بِمَاءٍ مَعِينٍ"
+                }
+            },
+            "112": {
+                name: "الإخلاص",
+                verses: {
+                    "1": "قُلْ هُوَ اللَّهُ أَحَدٌ",
+                    "2": "اللَّهُ الصَّمَدُ",
+                    "3": "لَمْ يَلِدْ وَلَمْ يُولَدْ",
+                    "4": "وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ"
+                }
+            },
+            "113": {
+                name: "الفلق",
+                verses: {
+                    "1": "قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ",
+                    "2": "مِنْ شَرِّ مَا خَلَقَ",
+                    "3": "وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ",
+                    "4": "وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ",
+                    "5": "وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ"
+                }
+            },
+            "114": {
+                name: "الناس",
+                verses: {
+                    "1": "قُلْ أَعُوذُ بِرَبِّ النَّاسِ",
+                    "2": "مَلِكِ النَّاسِ",
+                    "3": "إِلَٰهِ النَّاسِ",
+                    "4": "مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ",
+                    "5": "الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ",
+                    "6": "مِنَ الْجِنَّةِ وَالنَّاسِ"
+                }
+            }
+        };
+
+        let recognition;
+        let currentVerse = "";
+        let currentAyahStart = 0;
+        let currentAyahEnd = 0;
+        
+        // Initialize Speech Recognition
+        function initializeSpeechRecognition() {
+            console.log("🔧 Initializing Speech Recognition...");
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            console.log("SpeechRecognition available:", !!SpeechRecognition);
+            
+            if (!SpeechRecognition) {
+                const errorMsg = "عذراً، متصفحك لا يدعم تقنية التعرف على الصوت. على iPhone، يرجى استخدام Safari.";
+                showError(errorMsg);
+                console.error("❌ Speech Recognition not supported");
+                return false;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ar-SA';
+            recognition.continuous = true;
+            recognition.interimResults = true; // Changed to true for better feedback
+            recognition.maxAlternatives = 5;
+            
+            console.log("✅ Speech Recognition configured:", {
+                lang: recognition.lang,
+                continuous: recognition.continuous,
+                interimResults: recognition.interimResults
+            });
+            
+            recognition.onstart = function() {
+                console.log("🎤 Recognition STARTED");
+                document.getElementById('status').style.display = 'block';
+                document.getElementById('status').className = 'status listening';
+                document.getElementById('status').textContent = '🎤 جاري الاستماع...';
+            };
+            
+            recognition.onresult = function(event) {
+                console.log("📝 Recognition RESULT received, event:", event);
+                console.log("Number of results:", event.results.length);
+                
+                let fullTranscript = '';
+                let interimTranscript = '';
+                
+                for (let i = 0; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    console.log(`Result ${i}: isFinal=${event.results[i].isFinal}, text="${transcript}"`);
+                    
+                    if (event.results[i].isFinal) {
+                        fullTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript + ' ';
+                    }
+                }
+                
+                console.log("Full transcript so far:", fullTranscript);
+                console.log("Interim transcript:", interimTranscript);
+                
+                // Display both final and interim results
+                const displayText = (fullTranscript + interimTranscript).trim();
+                if (displayText) {
+                    document.getElementById('transcription-text').textContent = displayText;
+                    document.getElementById('transcription-container').style.display = 'block';
+                    console.log("✅ Displayed transcription:", displayText);
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                console.error("❌ Recognition ERROR:", event.error, event);
+                showError('حدث خطأ في التعرف على الصوت: ' + event.error);
+                resetButtons();
+            };
+            
+            recognition.onend = function() {
+                console.log("🛑 Recognition ENDED");
+                const transcribedText = document.getElementById('transcription-text').textContent;
+                console.log("Final transcribed text:", transcribedText);
+                
+                document.getElementById('status').style.display = 'none';
+                
+                if (transcribedText.trim()) {
+                    console.log("🔍 Starting comparison...");
+                    console.log("Current verse to compare:", currentVerse);
+                    compareTexts(currentVerse, transcribedText);
+                } else {
+                    console.warn("⚠️ No text transcribed");
+                    showError("لم يتم التعرف على أي صوت. حاول مرة أخرى.");
+                }
+                
+                resetButtons();
+            };
+            
+            return true;
+        }
+        
+        // Enhanced normalization for Quranic recitation
+        function normalizeArabic(text) {
+            return text
+                .replace(/۝/g, ' ') // Replace verse separator with space
+                .replace(/[ًٌٍَُِّْٰ]/g, '') // Remove all diacritics
+                .replace(/[إأآٱا]/g, 'ا') // Normalize all alef variations
+                .replace(/[ىيئ]/g, 'ي') // Normalize ya variations
+                .replace(/[ةه]/g, 'ه') // Normalize ta marbuta and ha
+                .replace(/[وؤ]/g, 'و') // Normalize waw
+                .replace(/ء/g, '') // Remove hamza
+                .replace(/ٱ/g, '') // Remove alef wasla
+                .replace(/ـ/g, '') // Remove tatweel
+                .replace(/\u0640/g, '') // Remove kashida
+                .trim()
+                .replace(/\s+/g, ' '); // Normalize spaces
+        }
+        
+        // Calculate similarity between two words using Levenshtein distance
+        function similarity(s1, s2) {
+            const longer = s1.length > s2.length ? s1 : s2;
+            const shorter = s1.length > s2.length ? s2 : s1;
+            
+            if (longer.length === 0) return 1.0;
+            
+            const editDistance = levenshteinDistance(longer, shorter);
+            return (longer.length - editDistance) / longer.length;
+        }
+        
+        // Levenshtein distance algorithm
+        function levenshteinDistance(s1, s2) {
+            const costs = [];
+            for (let i = 0; i <= s1.length; i++) {
+                let lastValue = i;
+                for (let j = 0; j <= s2.length; j++) {
+                    if (i === 0) {
+                        costs[j] = j;
+                    } else if (j > 0) {
+                        let newValue = costs[j - 1];
+                        if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+                            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                        }
+                        costs[j - 1] = lastValue;
+                        lastValue = newValue;
+                    }
+                }
+                if (i > 0) costs[s2.length] = lastValue;
+            }
+            return costs[s2.length];
+        }
+        
+        // Find best matching word from correct text
+        function findBestMatch(word, correctWords, usedIndices) {
+            let bestMatch = { index: -1, similarity: 0, word: '' };
+            
+            for (let i = 0; i < correctWords.length; i++) {
+                if (usedIndices.has(i)) continue;
+                
+                const sim = similarity(word, correctWords[i]);
+                if (sim > bestMatch.similarity) {
+                    bestMatch = { index: i, similarity: sim, word: correctWords[i] };
+                }
+            }
+            
+            return bestMatch;
+        }
+        
+        // Enhanced comparison for Quranic recitation
+        function compareTexts(correct, transcribed) {
+            console.log("Comparing - Correct:", correct);
+            console.log("Comparing - Transcribed:", transcribed);
+            
+            const correctWords = normalizeArabic(correct).split(' ').filter(w => w.length > 0);
+            const transcribedWords = normalizeArabic(transcribed).split(' ').filter(w => w.length > 0);
+            
+            console.log("Correct words:", correctWords);
+            console.log("Transcribed words:", transcribedWords);
+            
+            const comparisonResult = document.getElementById('comparison-result');
+            comparisonResult.innerHTML = '';
+            
+            let correctCount = 0;
+            let partialCount = 0;
+            let repeatedCount = 0;
+            const matchedWords = new Map();
+            const SIMILARITY_THRESHOLD = 0.55; // Lowered from 0.7 - more forgiving for pronunciation
+            const HIGH_SIMILARITY = 0.75; // Lowered from 0.9 - account for tajweed variations
+            
+            // Initialize match counter for each correct word
+            correctWords.forEach((word, i) => {
+                matchedWords.set(i, 0);
+            });
+            
+            // Build ayah structure from current selection
+            const surahId = document.getElementById('surah-select').value;
+            const ayahStructure = [];
+            
+            if (surahId && quranData[surahId]) {
+                let wordIndex = 0;
+                for (let ayahNum = currentAyahStart; ayahNum <= currentAyahEnd; ayahNum++) {
+                    const ayahText = quranData[surahId].verses[ayahNum];
+                    const ayahWords = normalizeArabic(ayahText).split(' ').filter(w => w.length > 0);
+                    
+                    ayahStructure.push({
+                        number: ayahNum,
+                        text: ayahText,
+                        startIndex: wordIndex,
+                        endIndex: wordIndex + ayahWords.length - 1,
+                        wordCount: ayahWords.length
+                    });
+                    
+                    wordIndex += ayahWords.length;
+                }
+            }
+            
+            console.log("Ayah structure:", ayahStructure);
+            
+            // First pass: Match transcribed words to correct words
+            const transcribedMatches = [];
+            transcribedWords.forEach((transWord, i) => {
+                const match = findBestMatch(transWord, correctWords, new Set());
+                
+                if (match.similarity >= SIMILARITY_THRESHOLD) {
+                    const matchCount = matchedWords.get(match.index);
+                    matchedWords.set(match.index, matchCount + 1);
+                    
+                    transcribedMatches.push({
+                        correctIndex: match.index,
+                        transcribed: transWord,
+                        correct: match.word,
+                        similarity: match.similarity,
+                        isRepeat: matchCount > 0
+                    });
+                    
+                    if (matchCount === 0) {
+                        correctCount++;
+                        if (match.similarity < HIGH_SIMILARITY) partialCount++;
+                    } else {
+                        repeatedCount++;
+                    }
+                } else if (match.similarity > 0.4) {
+                    transcribedMatches.push({
+                        correctIndex: match.index,
+                        transcribed: transWord,
+                        correct: match.word,
+                        similarity: match.similarity,
+                        isWrong: true
+                    });
+                } else {
+                    transcribedMatches.push({
+                        transcribed: transWord,
+                        isExtra: true
+                    });
+                }
+            });
+            
+            // Second pass: Display by Ayah with missing Ayahs shown completely
+            ayahStructure.forEach(ayah => {
+                const ayahDiv = document.createElement('div');
+                ayahDiv.style.marginBottom = '20px';
+                ayahDiv.style.padding = '15px';
+                ayahDiv.style.borderRadius = '8px';
+                ayahDiv.style.border = '2px solid #e0e0e0';
+                
+                // Check if ANY word from this ayah is missing
+                let ayahWordsMatched = 0;
+                let ayahHasMissing = false;
+                
+                for (let i = ayah.startIndex; i <= ayah.endIndex; i++) {
+                    if (matchedWords.get(i) > 0) {
+                        ayahWordsMatched++;
+                    } else {
+                        ayahHasMissing = true;
+                    }
+                }
+                
+                // Ayah header with number
+                const headerDiv = document.createElement('div');
+                headerDiv.style.marginBottom = '10px';
+                headerDiv.style.display = 'flex';
+                headerDiv.style.alignItems = 'center';
+                headerDiv.style.gap = '10px';
+                
+                const ayahBadge = document.createElement('span');
+                ayahBadge.style.background = ayahHasMissing ? '#ffc107' : '#28a745';
+                ayahBadge.style.color = 'white';
+                ayahBadge.style.padding = '5px 12px';
+                ayahBadge.style.borderRadius = '15px';
+                ayahBadge.style.fontSize = '0.9em';
+                ayahBadge.style.fontWeight = 'bold';
+                ayahBadge.textContent = `الآية ${ayah.number}`;
+                
+                const statusBadge = document.createElement('span');
+                statusBadge.style.fontSize = '0.85em';
+                statusBadge.style.color = '#666';
+                
+                if (ayahWordsMatched === ayah.wordCount) {
+                    statusBadge.textContent = '✅ كاملة';
+                    statusBadge.style.color = '#28a745';
+                    ayahDiv.style.borderColor = '#28a745';
+                    ayahDiv.style.background = '#f0fff4';
+                } else if (ayahWordsMatched > 0) {
+                    statusBadge.textContent = `⚠️ ناقصة (${ayahWordsMatched}/${ayah.wordCount} كلمة)`;
+                    statusBadge.style.color = '#ff9800';
+                    ayahDiv.style.borderColor = '#ff9800';
+                    ayahDiv.style.background = '#fff8e1';
+                } else {
+                    statusBadge.textContent = '❌ مفقودة تماماً';
+                    statusBadge.style.color = '#dc3545';
+                    ayahDiv.style.borderColor = '#dc3545';
+                    ayahDiv.style.background = '#fff5f5';
+                }
+                
+                headerDiv.appendChild(ayahBadge);
+                headerDiv.appendChild(statusBadge);
+                ayahDiv.appendChild(headerDiv);
+                
+                // Display full ayah text if missing or partially missing
+                if (ayahHasMissing) {
+                    const ayahTextDiv = document.createElement('div');
+                    ayahTextDiv.style.fontSize = '1.4em';
+                    ayahTextDiv.style.lineHeight = '2';
+                    ayahTextDiv.style.color = '#333';
+                    ayahTextDiv.style.fontFamily = "'Traditional Arabic', 'Arial', sans-serif";
+                    ayahTextDiv.style.padding = '10px';
+                    ayahTextDiv.style.background = 'white';
+                    ayahTextDiv.style.borderRadius = '5px';
+                    ayahTextDiv.textContent = ayah.text;
+                    ayahDiv.appendChild(ayahTextDiv);
+                    
+                    if (ayahWordsMatched === 0) {
+                        const noteDiv = document.createElement('div');
+                        noteDiv.style.marginTop = '10px';
+                        noteDiv.style.fontSize = '0.9em';
+                        noteDiv.style.color = '#dc3545';
+                        noteDiv.style.fontWeight = 'bold';
+                        noteDiv.textContent = '⚠️ هذه الآية لم تُتلَ - يرجى مراجعتها';
+                        ayahDiv.appendChild(noteDiv);
+                    }
+                }
+                
+                comparisonResult.appendChild(ayahDiv);
+            });
+            
+            // Show repeated words separately
+            if (repeatedCount > 0) {
+                const repeatedSection = document.createElement('div');
+                repeatedSection.style.marginTop = '20px';
+                repeatedSection.style.padding = '15px';
+                repeatedSection.style.background = '#e7f3ff';
+                repeatedSection.style.borderRadius = '8px';
+                
+                const repeatLabel = document.createElement('div');
+                repeatLabel.style.fontSize = '1em';
+                repeatLabel.style.fontWeight = 'bold';
+                repeatLabel.style.color = '#0d6efd';
+                repeatLabel.style.marginBottom = '10px';
+                repeatLabel.textContent = 'كلمات مكررة (لا تؤثر على النتيجة):';
+                repeatedSection.appendChild(repeatLabel);
+                
+                transcribedMatches.forEach(match => {
+                    if (match.isRepeat) {
+                        const span = document.createElement('span');
+                        span.className = 'word repeat';
+                        span.textContent = match.correct + ' 🔁';
+                        span.title = 'تكرار - لا يؤثر على النتيجة';
+                        repeatedSection.appendChild(span);
+                    }
+                });
+                
+                comparisonResult.appendChild(repeatedSection);
+            }
+            
+            // Show extra or wrong words
+            const extraMatches = transcribedMatches.filter(m => m.isExtra || m.isWrong);
+            if (extraMatches.length > 0) {
+                const extraSection = document.createElement('div');
+                extraSection.style.marginTop = '20px';
+                extraSection.style.padding = '15px';
+                extraSection.style.background = '#ffe6e6';
+                extraSection.style.borderRadius = '8px';
+                
+                const extraLabel = document.createElement('div');
+                extraLabel.style.fontSize = '1em';
+                extraLabel.style.fontWeight = 'bold';
+                extraLabel.style.color = '#dc3545';
+                extraLabel.style.marginBottom = '10px';
+                extraLabel.textContent = 'كلمات خاطئة أو زائدة:';
+                extraSection.appendChild(extraLabel);
+                
+                extraMatches.forEach(match => {
+                    const span = document.createElement('span');
+                    span.className = 'word incorrect';
+                    if (match.isExtra) {
+                        span.textContent = match.transcribed + ' (زائدة)';
+                    } else {
+                        span.textContent = `${match.transcribed} ← ${match.correct}`;
+                        span.title = `تطابق: ${Math.round(match.similarity * 100)}%`;
+                    }
+                    extraSection.appendChild(span);
+                });
+                
+                comparisonResult.appendChild(extraSection);
+            }
+            
+            // Calculate statistics
+            const totalAyahs = ayahStructure.length;
+            const completeAyahs = ayahStructure.filter(ayah => {
+                for (let i = ayah.startIndex; i <= ayah.endIndex; i++) {
+                    if (matchedWords.get(i) === 0) return false;
+                }
+                return true;
+            }).length;
+            
+            const missingAyahs = ayahStructure.filter(ayah => {
+                for (let i = ayah.startIndex; i <= ayah.endIndex; i++) {
+                    if (matchedWords.get(i) > 0) return false;
+                }
+                return true;
+            }).length;
+            
+            const accuracy = Math.round((correctCount / correctWords.length) * 100);
+            const completenessPercent = Math.round((completeAyahs / totalAyahs) * 100);
+            
+            // Display statistics
+            const statsDiv = document.createElement('div');
+            statsDiv.style.marginTop = '20px';
+            statsDiv.style.padding = '20px';
+            statsDiv.style.background = '#f8f9fa';
+            statsDiv.style.borderRadius = '10px';
+            statsDiv.style.textAlign = 'center';
+            
+            let message = '';
+            let color = '';
+            
+            if (completeAyahs === totalAyahs && accuracy >= 90) {
+                message = '🌟 ممتاز! جميع الآيات كاملة ودقيقة';
+                color = '#28a745';
+            } else if (completeAyahs === totalAyahs) {
+                message = '✅ جيد جداً! جميع الآيات كاملة';
+                color = '#28a745';
+            } else if (missingAyahs === 0) {
+                message = '⚠️ جيد - بعض الآيات ناقصة، راجع الآيات الصفراء';
+                color = '#ff9800';
+            } else {
+                message = '📖 بعض الآيات مفقودة - راجع الآيات الحمراء';
+                color = '#dc3545';
+            }
+            
+            statsDiv.innerHTML = `
+                <div style="font-weight: bold; color: ${color}; font-size: 1.3em; margin-bottom: 15px;">
+                    ${message}
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px;">
+                    <div>
+                        <div style="font-weight: bold; color: #333;">الآيات الكاملة</div>
+                        <div style="font-size: 1.8em; color: ${completeAyahs === totalAyahs ? '#28a745' : '#ff9800'}; font-weight: bold;">
+                            ${completeAyahs}/${totalAyahs}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-weight: bold; color: #333;">دقة الكلمات</div>
+                        <div style="font-size: 1.8em; color: ${accuracy >= 80 ? '#28a745' : accuracy >= 60 ? '#ff9800' : '#dc3545'}; font-weight: bold;">
+                            ${accuracy}%
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-weight: bold; color: #333;">إكمال الآيات</div>
+                        <div style="font-size: 1.8em; color: ${completenessPercent === 100 ? '#28a745' : completenessPercent >= 50 ? '#ff9800' : '#dc3545'}; font-weight: bold;">
+                            ${completenessPercent}%
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; font-size: 0.9em; color: #666; border-top: 1px solid #ddd; padding-top: 15px;">
+                    ${correctCount} من ${correctWords.length} كلمة صحيحة
+                    ${missingAyahs > 0 ? ` • ${missingAyahs} آية مفقودة` : ''}
+                    ${repeatedCount > 0 ? ` • ${repeatedCount} كلمة مكررة` : ''}
+                    ${partialCount > 0 ? ` • ${partialCount} كلمة مع اختلافات نطق` : ''}
+                </div>
+            `;
+            
+            comparisonResult.appendChild(statsDiv);
+            document.getElementById('comparison-container').style.display = 'block';
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = `<div class="error-message">${message}</div>`;
+            setTimeout(() => {
+                errorContainer.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Reset buttons
+        function resetButtons() {
+            document.getElementById('start-btn').style.display = 'inline-block';
+            document.getElementById('stop-btn').style.display = 'none';
+        }
+        
+        // Event Listeners
+        document.getElementById('surah-select').addEventListener('change', function() {
+            const surahId = this.value;
+            const ayahStartSelect = document.getElementById('ayah-start-select');
+            const ayahEndSelect = document.getElementById('ayah-end-select');
+            
+            ayahStartSelect.innerHTML = '<option value="">-- اختر --</option>';
+            ayahEndSelect.innerHTML = '<option value="">-- اختر --</option>';
+            document.getElementById('verse-container').style.display = 'none';
+            
+            if (surahId && quranData[surahId]) {
+                ayahStartSelect.disabled = false;
+                ayahEndSelect.disabled = false;
+                const verses = quranData[surahId].verses;
+                
+                for (let ayahNum in verses) {
+                    const option1 = document.createElement('option');
+                    option1.value = ayahNum;
+                    option1.textContent = `الآية ${ayahNum}`;
+                    ayahStartSelect.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = ayahNum;
+                    option2.textContent = `الآية ${ayahNum}`;
+                    ayahEndSelect.appendChild(option2);
+                }
+            } else {
+                ayahStartSelect.disabled = true;
+                ayahEndSelect.disabled = true;
+            }
+        });
+        
+        // Update verse display when selection changes
+        function updateVerseDisplay() {
+            const surahId = document.getElementById('surah-select').value;
+            const ayahStart = parseInt(document.getElementById('ayah-start-select').value);
+            const ayahEnd = parseInt(document.getElementById('ayah-end-select').value);
+            
+            if (surahId && !isNaN(ayahStart) && !isNaN(ayahEnd) && quranData[surahId]) {
+                if (ayahStart > ayahEnd) {
+                    showError('رقم الآية الأولى يجب أن يكون أصغر من أو يساوي رقم الآية الأخيرة');
+                    document.getElementById('verse-container').style.display = 'none';
+                    return;
+                }
+                
+                currentAyahStart = ayahStart;
+                currentAyahEnd = ayahEnd;
+                
+                // Combine verses
+                const verses = quranData[surahId].verses;
+                let combinedText = '';
+                const verseTexts = [];
+                
+                for (let i = ayahStart; i <= ayahEnd; i++) {
+                    if (verses[i]) {
+                        verseTexts.push(verses[i]);
+                    }
+                }
+                
+                currentVerse = verseTexts.join(' ۝ '); // Using verse separator symbol
+                
+                // Display with verse numbers
+                const displayHtml = verseTexts.map((text, index) => {
+                    const ayahNum = ayahStart + index;
+                    return `<div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; background: #667eea; color: white; padding: 3px 10px; border-radius: 15px; font-size: 0.8em; margin-left: 10px;">
+                            ${ayahNum}
+                        </span>
+                        <span>${text}</span>
+                    </div>`;
+                }).join('');
+                
+                document.getElementById('correct-text').innerHTML = displayHtml;
+                document.getElementById('verse-container').style.display = 'block';
+                document.getElementById('transcription-container').style.display = 'none';
+                document.getElementById('comparison-container').style.display = 'none';
+                
+                // Update recording time limit based on number of verses
+                const numVerses = ayahEnd - ayahStart + 1;
+                if (recognition) {
+                    recognition.continuous = numVerses > 1;
+                }
+            }
+        }
+        
+        document.getElementById('ayah-start-select').addEventListener('change', updateVerseDisplay);
+        document.getElementById('ayah-end-select').addEventListener('change', updateVerseDisplay);
+        
+        document.getElementById('start-btn').addEventListener('click', function() {
+            console.log("🎬 START button clicked");
+            console.log("Current verse:", currentVerse);
+            console.log("Ayah range:", currentAyahStart, "to", currentAyahEnd);
+            
+            if (!currentVerse) {
+                console.error("❌ No verse selected!");
+                showError("يرجى اختيار السورة والآيات أولاً");
+                return;
+            }
+            
+            if (!recognition && !initializeSpeechRecognition()) {
+                console.error("❌ Failed to initialize recognition");
+                return;
+            }
+            
+            console.log("✅ Recognition ready, clearing previous results...");
+            
+            // Clear previous results
+            document.getElementById('transcription-text').textContent = '';
+            document.getElementById('transcription-container').style.display = 'none';
+            document.getElementById('comparison-container').style.display = 'none';
+            
+            this.style.display = 'none';
+            document.getElementById('stop-btn').style.display = 'inline-block';
+            
+            // Update status message based on number of verses
+            const numVerses = currentAyahEnd - currentAyahStart + 1;
+            const statusDiv = document.getElementById('status');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status listening';
+            
+            if (numVerses === 1) {
+                statusDiv.textContent = '🎤 جاري الاستماع... تلُ الآية';
+            } else {
+                statusDiv.textContent = `🎤 جاري الاستماع... تلُ ${numVerses} آيات (اضغط "أوقف" عند الانتهاء)`;
+            }
+            
+            console.log("🚀 Starting recognition...");
+            try {
+                recognition.start();
+                console.log("✅ Recognition start() called successfully");
+            } catch (e) {
+                console.error("❌ Error calling recognition.start():", e);
+                showError("خطأ في بدء التسجيل: " + e.message);
+                resetButtons();
+            }
+        });
+        
+        document.getElementById('stop-btn').addEventListener('click', function() {
+            console.log("🛑 STOP button clicked");
+            if (recognition) {
+                console.log("Stopping recognition...");
+                recognition.stop();
+            } else {
+                console.warn("⚠️ Recognition not initialized");
+            }
+        });
+        
+        // Initialize on load
+        window.addEventListener('load', function() {
+            console.log("🌐 Page loaded");
+            console.log("User agent:", navigator.userAgent);
+            console.log("Testing Speech Recognition support...");
+            initializeSpeechRecognition();
+        });
+    </script>
+</body>
+</html>
