@@ -735,6 +735,7 @@
         // State
         let recognition = null;
         let isListening = false;
+        let shouldAnalyzeOnEnd = false; // Flag to trigger analysis after recognition ends
         let sessionStart = null;
         let transcript = '';
         let transcriptWords = [];
@@ -812,10 +813,16 @@
             recognition.onend = () => {
                 console.log('🔚 Speech recognition ended');
                 console.log('   isListening:', isListening);
+                console.log('   shouldAnalyzeOnEnd:', shouldAnalyzeOnEnd);
                 console.log('   Transcript so far:', transcript);
                 console.log('   Word count:', transcriptWords.length);
 
-                if (isListening) {
+                if (shouldAnalyzeOnEnd) {
+                    // User stopped listening - trigger analysis now with final transcript
+                    shouldAnalyzeOnEnd = false;
+                    console.log('📊 Triggering analysis after recognition ended');
+                    setTimeout(() => analyzeFullRecitation(), 100); // Small delay to ensure all events processed
+                } else if (isListening) {
                     // Restart if we're still supposed to be listening
                     console.log('   → Restarting recognition...');
                     recognition.start();
@@ -838,6 +845,7 @@
             if (!isListening) {
                 // Start listening
                 isListening = true;
+                shouldAnalyzeOnEnd = false; // Reset flag
                 sessionStart = new Date();
                 transcript = '';
                 transcriptWords = [];
@@ -864,21 +872,20 @@
             console.log('   Word count:', transcriptWords.length);
 
             isListening = false;
+            shouldAnalyzeOnEnd = true; // Set flag to analyze when recognition ends
             const btn = document.getElementById('listen-btn');
 
             btn.textContent = '🎤 استمع';
             btn.classList.remove('listening');
 
             if (recognition) {
+                console.log('   Stopping speech recognition...');
                 recognition.stop();
-            }
-
-            // Wait a moment for final recognition results, then analyze
-            setTimeout(() => {
-                console.log('📊 Final transcript before analysis:', transcript);
-                console.log('   Final word count:', transcriptWords.length);
+                // Analysis will be triggered in onend handler
+            } else {
+                // No recognition running, analyze immediately
                 analyzeFullRecitation();
-            }, 500);
+            }
         }
 
         // Analyze Full Recitation (Post-Processing)
