@@ -859,6 +859,16 @@
                         <div class="summary-value">${summary.primarySurah.name}</div>
                         <div class="summary-sublabel">${summary.primarySurah.nameEn}</div>
                     </div>`;
+
+            // Show verse range if available
+            if (summary.verseRange && summary.verseRange.start !== summary.verseRange.end) {
+                html += `<div class="summary-item">
+                            <div class="summary-label">نطاق الآيات</div>
+                            <div class="summary-value">${summary.verseRange.start}-${summary.verseRange.end}</div>
+                            <div class="summary-sublabel">من ${summary.verseRange.count} آية</div>
+                        </div>`;
+            }
+
             html += `<div class="summary-item">
                         <div class="summary-label">الدقة الإجمالية</div>
                         <div class="summary-value ${summary.overallAccuracy >= 0.90 ? 'excellent' : summary.overallAccuracy >= 0.70 ? 'good' : 'needs-work'}">
