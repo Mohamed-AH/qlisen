@@ -11,6 +11,7 @@
 const express = require('express');
 const router = express.Router();
 const quranService = require('../services/quranService');
+const RecitationAnalyzer = require('../services/recitationAnalyzer');
 
 // Note: authenticateJWT middleware should be imported from your auth middleware
 // For integration: const { authenticateJWT } = require('../middleware/auth');
@@ -311,6 +312,64 @@ router.get('/stats', authenticateJWT, async (req, res) => {
         res.status(500).json({
             success: false,
             error: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/recitation/analyze-full
+ * Comprehensive post-processing analysis of complete recitation
+ * NEW: Replaces real-time detection with full-transcript analysis
+ */
+router.post('/analyze-full', authenticateJWT, async (req, res) => {
+    try {
+        const { transcript, sessionId, duration, wordCount } = req.body;
+
+        if (!transcript || transcript.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Transcript is required'
+            });
+        }
+
+        console.log('\n📊 FULL ANALYSIS REQUEST:');
+        console.log('   Session ID:', sessionId || 'N/A');
+        console.log('   Transcript length:', transcript.length, 'characters');
+        console.log('   Word count:', wordCount || transcript.split(/\s+/).length);
+        console.log('   Duration:', duration || 'N/A', 'ms');
+
+        // Create analyzer instance
+        const analyzer = new RecitationAnalyzer(quranService);
+
+        // Run full analysis pipeline
+        const startTime = Date.now();
+        const report = await analyzer.analyzeFull(transcript, {
+            sessionId,
+            duration,
+            wordCount
+        });
+        const analysisTime = Date.now() - startTime;
+
+        if (report.success) {
+            console.log('✅ ANALYSIS COMPLETE:');
+            console.log('   Surah:', report.summary.primarySurah.name);
+            console.log('   Accuracy:', (report.summary.overallAccuracy * 100).toFixed(1) + '%');
+            console.log('   Verses recited:', report.summary.versesRecited, '/', report.summary.versesInRange);
+            console.log('   Verses skipped:', report.summary.versesSkipped.length);
+            console.log('   Processing time:', analysisTime, 'ms');
+        } else {
+            console.log('❌ ANALYSIS FAILED:', report.error);
+        }
+
+        res.json(report);
+
+    } catch (error) {
+        console.error('Error in full analysis:', error);
+        res.status(500).json({
+            success: false,
+            error: 'analysis_failed',
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });

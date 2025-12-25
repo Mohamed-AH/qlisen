@@ -309,6 +309,175 @@
                 font-size: 18px;
             }
         }
+
+        /* Analysis Report Styles */
+        .report-section {
+            margin-bottom: 30px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 20px;
+            background: rgba(10, 58, 42, 0.05);
+            border-radius: 15px;
+            border: 2px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .summary-label {
+            font-size: 0.95em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .summary-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #0a3a2a;
+            margin-bottom: 5px;
+        }
+
+        .summary-value.excellent {
+            color: #27ae60;
+        }
+
+        .summary-value.good {
+            color: #f39c12;
+        }
+
+        .summary-value.needs-work {
+            color: #e74c3c;
+        }
+
+        .summary-sublabel {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .verse-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            border-left: 5px solid #ccc;
+            background: #f8f9fa;
+        }
+
+        .verse-item.verse-perfect {
+            border-left-color: #27ae60;
+            background: rgba(39, 174, 96, 0.05);
+        }
+
+        .verse-item.verse-good {
+            border-left-color: #3498db;
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .verse-item.verse-partial {
+            border-left-color: #f39c12;
+            background: rgba(243, 156, 18, 0.05);
+        }
+
+        .verse-item.verse-skipped {
+            border-left-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.05);
+        }
+
+        .verse-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .verse-number {
+            color: #0a3a2a;
+        }
+
+        .verse-status {
+            font-size: 0.9em;
+        }
+
+        .verse-text {
+            font-size: 1.4em;
+            line-height: 2;
+            color: #0a3a2a;
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            font-family: 'Traditional Arabic', 'Amiri', serif;
+        }
+
+        .verse-details {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .mistake-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: rgba(231, 76, 60, 0.05);
+            border-radius: 12px;
+            border-right: 5px solid #e74c3c;
+        }
+
+        .mistake-title {
+            font-weight: 600;
+            color: #e74c3c;
+            margin-bottom: 8px;
+        }
+
+        .mistake-words {
+            font-size: 1.1em;
+            color: #0a3a2a;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .mistake-suggestion {
+            font-size: 0.95em;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .recommendations-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .recommendations-list li {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: rgba(39, 174, 96, 0.05);
+            border-radius: 10px;
+            border-right: 4px solid #27ae60;
+        }
+
+        .recommendations-list li:before {
+            content: "💡 ";
+            margin-left: 10px;
+        }
+
+        .encouragement {
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 600;
+            padding: 25px;
+            margin-top: 30px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.2));
+            border-radius: 15px;
+            color: #0a3a2a;
+        }
     </style>
 </head>
 <body>
@@ -411,6 +580,11 @@
             </div>
 
             <div class="session-info" id="session-summary"></div>
+        </div>
+
+        <!-- Analysis Report Container (Post-Processing) -->
+        <div class="card hidden" id="analysis-report">
+            <!-- Report will be populated by JavaScript -->
         </div>
     </div>
 
@@ -536,9 +710,7 @@
 
                 recognition.start();
 
-                // Start periodic position detection
-                detectionTimer = setInterval(detectPosition, DETECTION_INTERVAL);
-
+                // No periodic detection - we'll analyze when user stops
                 document.getElementById('stats-container').classList.remove('hidden');
                 updateStats();
             } else {
@@ -558,16 +730,193 @@
                 recognition.stop();
             }
 
-            if (detectionTimer) {
-                clearInterval(detectionTimer);
-                detectionTimer = null;
-            }
-
-            updateStatus('success', 'تم إنهاء الجلسة - جزاك الله خيراً');
-            showSessionSummary();
+            // Trigger full analysis
+            analyzeFullRecitation();
         }
 
-        // Detect Position from Backend
+        // Analyze Full Recitation (Post-Processing)
+        async function analyzeFullRecitation() {
+            if (transcriptWords.length < MIN_WORDS_FOR_DETECTION) {
+                updateStatus('error', 'التسجيل قصير جداً للتحليل (الحد الأدنى 5 كلمات)');
+                showSessionSummary();
+                return;
+            }
+
+            updateStatus('detecting', '🔍 جاري تحليل تلاوتك...');
+
+            const duration = sessionStart ? new Date() - sessionStart : 0;
+
+            try {
+                const response = await fetch(`${API_URL}/api/recitation/analyze-full`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        transcript: transcript,
+                        duration: duration,
+                        wordCount: transcriptWords.length
+                    })
+                });
+
+                const report = await response.json();
+
+                if (report.success) {
+                    displayAnalysisReport(report);
+                } else {
+                    // Handle analysis failures
+                    if (report.error === 'surah_not_identified') {
+                        updateStatus('error', 'لم يتم التعرف على السورة - حاول التلاوة بشكل أوضح');
+                    } else if (report.error === 'low_confidence') {
+                        updateStatus('warning', 'ثقة منخفضة في التعرف - قد تكون النتائج غير دقيقة');
+                        if (report.topCandidates && report.topCandidates.length > 0) {
+                            const candidates = report.topCandidates
+                                .map(c => `${c.surahName} (${(c.confidence * 100).toFixed(0)}%)`)
+                                .join('، ');
+                            showError(`السور المرشحة: ${candidates}`);
+                        }
+                    } else {
+                        updateStatus('error', `خطأ في التحليل: ${report.message || 'خطأ غير معروف'}`);
+                    }
+                    showSessionSummary();
+                }
+            } catch (error) {
+                console.error('Error analyzing recitation:', error);
+                updateStatus('error', 'فشل الاتصال بالخادم للتحليل');
+                showSessionSummary();
+            }
+        }
+
+        // Display Comprehensive Analysis Report
+        function displayAnalysisReport(report) {
+            const summary = report.summary;
+
+            // Update status with success
+            updateStatus('success', `✅ تم التحليل بنجاح - ${summary.primarySurah.name}`);
+
+            // Hide real-time position display
+            document.getElementById('position-container').classList.add('hidden');
+            document.getElementById('verse-container').classList.add('hidden');
+
+            // Show analysis report
+            const reportContainer = document.getElementById('analysis-report');
+            reportContainer.classList.remove('hidden');
+
+            // Build report HTML
+            let html = '';
+
+            // Summary Section
+            html += '<div class="report-section summary-section">';
+            html += `<h2 style="color: #d4af37; margin-bottom: 20px;">📊 ملخص التلاوة</h2>`;
+            html += '<div class="summary-grid">';
+            html += `<div class="summary-item">
+                        <div class="summary-label">السورة</div>
+                        <div class="summary-value">${summary.primarySurah.name}</div>
+                        <div class="summary-sublabel">${summary.primarySurah.nameEn}</div>
+                    </div>`;
+            html += `<div class="summary-item">
+                        <div class="summary-label">الدقة الإجمالية</div>
+                        <div class="summary-value ${summary.overallAccuracy >= 0.90 ? 'excellent' : summary.overallAccuracy >= 0.70 ? 'good' : 'needs-work'}">
+                            ${(summary.overallAccuracy * 100).toFixed(0)}%
+                        </div>
+                    </div>`;
+            html += `<div class="summary-item">
+                        <div class="summary-label">الآيات المُتلاة</div>
+                        <div class="summary-value">${summary.versesRecited} / ${summary.versesInRange}</div>
+                    </div>`;
+            html += `<div class="summary-item">
+                        <div class="summary-label">الآيات المتخطاة</div>
+                        <div class="summary-value ${summary.versesSkipped.length === 0 ? 'excellent' : 'needs-work'}">
+                            ${summary.versesSkipped.length}
+                        </div>
+                    </div>`;
+            html += '</div>';
+            html += '</div>';
+
+            // Verses Section
+            if (report.verses && report.verses.length > 0) {
+                html += '<div class="report-section verses-section">';
+                html += '<h3 style="color: #0a3a2a; margin-bottom: 15px;">📖 تفاصيل الآيات</h3>';
+
+                for (const verse of report.verses) {
+                    const statusEmoji = verse.status === 'perfect' ? '✅' :
+                                       verse.status === 'good' ? '👍' :
+                                       verse.status === 'partial' ? '⚠️' : '❌';
+                    const statusText = verse.status === 'perfect' ? 'ممتاز' :
+                                      verse.status === 'good' ? 'جيد' :
+                                      verse.status === 'partial' ? 'جزئي' : 'متخطاة';
+                    const statusClass = verse.status === 'perfect' ? 'verse-perfect' :
+                                       verse.status === 'good' ? 'verse-good' :
+                                       verse.status === 'partial' ? 'verse-partial' : 'verse-skipped';
+
+                    html += `<div class="verse-item ${statusClass}">`;
+                    html += `<div class="verse-header">
+                                <span class="verse-number">الآية ${verse.ayah}</span>
+                                <span class="verse-status">${statusEmoji} ${statusText} (${(verse.accuracy * 100).toFixed(0)}%)</span>
+                            </div>`;
+                    html += `<div class="verse-text">${verse.text}</div>`;
+                    html += `<div class="verse-details">
+                                الكلمات: ${verse.wordsMatched} / ${verse.wordCount}
+                                ${verse.wordsMissing > 0 ? `<span style="color: #e74c3c; margin-right: 10px;">ناقص: ${verse.wordsMissing}</span>` : ''}
+                            </div>`;
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+
+            // Mistakes Section
+            if (report.mistakes && report.mistakes.length > 0) {
+                html += '<div class="report-section mistakes-section">';
+                html += '<h3 style="color: #e74c3c; margin-bottom: 15px;">⚠️ الأخطاء والملاحظات</h3>';
+
+                for (const mistake of report.mistakes) {
+                    html += '<div class="mistake-item">';
+                    if (mistake.type === 'skipped_verse') {
+                        html += `<div class="mistake-title">آية متخطاة: ${mistake.ayah}</div>`;
+                        html += `<div class="mistake-suggestion">${mistake.suggestion}</div>`;
+                    } else if (mistake.type === 'missing_words') {
+                        html += `<div class="mistake-title">كلمات ناقصة في الآية ${mistake.ayah}</div>`;
+                        html += `<div class="mistake-words">${mistake.words.join('، ')}</div>`;
+                        html += `<div class="mistake-suggestion">${mistake.suggestion}</div>`;
+                    }
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+
+            // Recommendations Section
+            if (report.recommendations && report.recommendations.length > 0) {
+                html += '<div class="report-section recommendations-section">';
+                html += '<h3 style="color: #27ae60; margin-bottom: 15px;">💡 التوصيات</h3>';
+                html += '<ul class="recommendations-list">';
+
+                for (const rec of report.recommendations) {
+                    html += `<li>${rec}</li>`;
+                }
+
+                html += '</ul>';
+                html += '</div>';
+            }
+
+            // Encouragement
+            html += '<div class="encouragement">';
+            if (summary.overallAccuracy >= 0.95) {
+                html += '🌟 ماشاء الله! تلاوة ممتازة جداً - بارك الله فيك';
+            } else if (summary.overallAccuracy >= 0.80) {
+                html += '👏 أحسنت! تلاوة جيدة جداً - واصل التدريب';
+            } else if (summary.overallAccuracy >= 0.60) {
+                html += '💪 جيد! هناك مجال للتحسين - استمر في المراجعة';
+            } else {
+                html += '📚 راجع السورة مرة أخرى - النجاح يحتاج إلى مثابرة';
+            }
+            html += '</div>';
+
+            reportContainer.innerHTML = html;
+        }
+
+        // Detect Position from Backend (Legacy - kept for compatibility)
         async function detectPosition() {
             if (transcriptWords.length < MIN_WORDS_FOR_DETECTION) {
                 return;
