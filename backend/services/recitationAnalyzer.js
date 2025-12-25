@@ -157,13 +157,13 @@ class RecitationAnalyzer {
         const startTime = Date.now();
 
         // Get all verses for this surah
-        const surahVerses = this.quranService.quranData.filter(v => v.surah === surahId);
+        const allSurahVerses = this.quranService.quranData.filter(v => v.surah === surahId);
 
         const alignments = [];
         const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
 
         // For each verse, check how well it matches parts of the transcript
-        for (const verse of surahVerses) {
+        for (const verse of allSurahVerses) {
             const verseWords = verse.textNormalized.split(/\s+/);
             const alignment = this.alignWords(transcriptWords, verseWords);
 
@@ -181,11 +181,114 @@ class RecitationAnalyzer {
             });
         }
 
+        // Detect the actual verse range that was recited
+        const verseRange = this.detectVerseRange(alignments);
+
+        // Filter alignments to only include the detected range
+        const filteredAlignments = alignments.filter(a =>
+            a.ayah >= verseRange.startVerse && a.ayah <= verseRange.endVerse
+        );
+
         const processingTime = Date.now() - startTime;
 
         return {
-            alignments,
+            alignments: filteredAlignments,
+            verseRange,
             processingTime
+        };
+    }
+
+    /**
+     * Detect which verses were actually recited (find the continuous range)
+     */
+    detectVerseRange(alignments) {
+        // Find all verses with significant matches (accuracy >= 50%)
+        const significantVerses = alignments
+            .filter(a => a.accuracy >= 0.50)
+            .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
+            .sort((a, b) => a.ayah - b.ayah);
+
+        if (significantVerses.length === 0) {
+            // No significant matches at 50%, try 40%
+            const moderateVerses = alignments
+                .filter(a => a.accuracy >= 0.40)
+                .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
+                .sort((a, b) => a.ayah - b.ayah);
+
+            if (moderateVerses.length === 0) {
+                // Still nothing, use highest accuracy verse
+                const sorted = alignments
+                    .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
+                    .sort((a, b) => b.accuracy - a.accuracy);
+
+                return {
+                    startVerse: sorted[0]?.ayah || 1,
+                    endVerse: sorted[0]?.ayah || 1,
+                    versesInRange: 1
+                };
+            }
+
+            return this.findBestRange(moderateVerses);
+        }
+
+        return this.findBestRange(significantVerses);
+    }
+
+    /**
+     * Find the best continuous range from significant verses
+     */
+    findBestRange(significantVerses) {
+        // Find the continuous range with highest average accuracy
+        let bestRange = {
+            start: significantVerses[0].ayah,
+            end: significantVerses[0].ayah,
+            count: 1,
+            avgAccuracy: significantVerses[0].accuracy
+        };
+
+        let currentRange = {
+            start: significantVerses[0].ayah,
+            end: significantVerses[0].ayah,
+            count: 1,
+            totalAccuracy: significantVerses[0].accuracy
+        };
+
+        for (let i = 1; i < significantVerses.length; i++) {
+            const verse = significantVerses[i];
+            const prevVerse = significantVerses[i - 1];
+
+            // If within 2 verses of previous, extend current range
+            if (verse.ayah - prevVerse.ayah <= 2) {
+                currentRange.end = verse.ayah;
+                currentRange.count = currentRange.end - currentRange.start + 1;
+                currentRange.totalAccuracy += verse.accuracy;
+                const avgAccuracy = currentRange.totalAccuracy / currentRange.count;
+
+                // Update best if this range has more verses OR similar count but better accuracy
+                if (currentRange.count > bestRange.count ||
+                    (currentRange.count === bestRange.count && avgAccuracy > bestRange.avgAccuracy)) {
+                    bestRange = {
+                        start: currentRange.start,
+                        end: currentRange.end,
+                        count: currentRange.count,
+                        avgAccuracy
+                    };
+                }
+            } else {
+                // Gap too large, start new range
+                currentRange = {
+                    start: verse.ayah,
+                    end: verse.ayah,
+                    count: 1,
+                    totalAccuracy: verse.accuracy
+                };
+            }
+        }
+
+        return {
+            startVerse: bestRange.start,
+            endVerse: bestRange.end,
+            versesInRange: bestRange.count
         };
     }
 
@@ -295,7 +398,7 @@ class RecitationAnalyzer {
     /**
      * Phase 4: Generate comprehensive report
      */
-    generateReport(surahDetection, alignments, skipDetection, metadata) {
+    generateReport(surahDetection, alignments, skipDetection, verseRange, metadata) {
         // Calculate overall accuracy
         const totalWords = alignments.reduce((sum, a) => sum + a.wordCount, 0);
         const matchedWords = alignments.reduce((sum, a) => sum + a.wordsMatched, 0);
@@ -342,7 +445,12 @@ class RecitationAnalyzer {
             summary: {
                 surahsDetected: 1,
                 primarySurah: surahDetection.primarySurah,
-                versesInRange: alignments.length,
+                verseRange: {
+                    start: verseRange.startVerse,
+                    end: verseRange.endVerse,
+                    count: verseRange.versesInRange
+                },
+                versesInRange: verseRange.versesInRange,
                 versesRecited: skipDetection.recitedVerses.length,
                 versesSkipped: skipDetection.skippedVerses.map(v => v.ayah),
                 overallAccuracy: Math.round(overallAccuracy * 100) / 100,
@@ -392,7 +500,7 @@ class RecitationAnalyzer {
             }
 
             // Phase 2: Align to verses
-            const { alignments, processingTime: alignTime } = await this.alignToVerses(
+            const { alignments, verseRange, processingTime: alignTime } = await this.alignToVerses(
                 preprocessed.normalized,
                 surahDetection.primarySurah.id
             );
@@ -406,6 +514,7 @@ class RecitationAnalyzer {
                 surahDetection,
                 alignments,
                 skipDetection,
+                verseRange,
                 {
                     ...metadata,
                     totalProcessingTime
