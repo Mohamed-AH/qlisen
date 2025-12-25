@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Test Page</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            font-family: 'Arial', sans-serif;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            min-height: 80px;
+            direction: rtl;
+        }
+        button {
+            background: #0a3a2a;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0d4d38;
+        }
+        .quick-test {
+            background: #d4af37;
+            color: #0a3a2a;
+            font-weight: bold;
+        }
+        .quick-test:hover {
+            background: #c09d2f;
+        }
+        .result {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #d4af37;
+            white-space: pre-wrap;
+            font-family: monospace;
+            direction: ltr;
+            text-align: left;
+        }
+        .success {
+            border-left-color: #28a745;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        h2 {
+            color: #0a3a2a;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .status.online {
+            background: #d4f4dd;
+            color: #0d4d38;
+        }
+        .status.offline {
+            background: #ffe6e6;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Backend Test Page</h1>
+
+    <div class="test-section">
+        <h2>1. Server Status</h2>
+        <button onclick="checkHealth()">Check Server</button>
+        <div id="health-status"></div>
+        <div id="health-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Quick Tests</h2>
+        <button class="quick-test" onclick="testFatiha()">Test Al-Fatiha</button>
+        <button class="quick-test" onclick="testIkhlas()">Test Al-Ikhlas</button>
+        <button class="quick-test" onclick="testMulk()">Test Al-Mulk</button>
+        <div id="quick-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Custom Test</h2>
+        <p>Paste any Quranic verse below:</p>
+        <textarea id="customText" placeholder="مثال: بسم الله الرحمن الرحيم"></textarea>
+        <button onclick="testCustom()">Detect Position</button>
+        <div id="custom-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Get Metadata</h2>
+        <button onclick="getMetadata()">Get Quran Metadata</button>
+        <div id="metadata-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5001';
+
+        async function checkHealth() {
+            const statusDiv = document.getElementById('health-status');
+            const resultDiv = document.getElementById('health-result');
+
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    statusDiv.innerHTML = '<span class="status online">✅ Server Online</span>';
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    statusDiv.innerHTML = '<span class="status offline">❌ Server Error</span>';
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                statusDiv.innerHTML = '<span class="status offline">❌ Server Offline</span>';
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Error: ' + error.message + '\n\nMake sure the server is running:\nnode backend/test-server.js';
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function detectPosition(transcript, resultElementId) {
+            const resultDiv = document.getElementById(resultElementId);
+
+            try {
+                const response = await fetch(`${API_URL}/api/recitation/detect-position`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ transcript })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.detected) {
+                    resultDiv.className = 'result success';
+                    let output = `✅ Position Detected!\n\n`;
+                    output += `Surah: ${data.position.surah} - ${data.position.surahName} (${data.position.surahNameEn})\n`;
+                    output += `Ayah: ${data.position.ayahStart}`;
+                    if (data.position.ayahEnd !== data.position.ayahStart) {
+                        output += ` - ${data.position.ayahEnd}`;
+                    }
+                    output += `\nPage: ${data.position.page}\n`;
+                    output += `Juz: ${data.position.juz}\n`;
+                    output += `Confidence: ${(data.confidence * 100).toFixed(1)}%\n\n`;
+                    output += `Full Response:\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.textContent = output;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = '❌ Position not detected\n\n' + JSON.stringify(data, null, 2);
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        function testFatiha() {
+            detectPosition('بسم الله الرحمن الرحيم', 'quick-result');
+        }
+
+        function testIkhlas() {
+            detectPosition('قل هو الله احد الله الصمد', 'quick-result');
+        }
+
+        function testMulk() {
+            detectPosition('تبارك الذي بيده الملك وهو على كل شيء قدير', 'quick-result');
+        }
+
+        function testCustom() {
+            const text = document.getElementById('customText').value;
+            if (!text.trim()) {
+                alert('Please enter some text');
+                return;
+            }
+            detectPosition(text, 'custom-result');
+        }
+
+        async function getMetadata() {
+            const resultDiv = document.getElementById('metadata-result');
+
+            try {
+                const response = await fetch(`${API_URL}/api/recitation/metadata`);
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    let output = `✅ Metadata Retrieved\n\n`;
+                    output += `Total Surahs: ${data.totalSurahs}\n`;
+                    output += `Total Ayahs: ${data.totalAyahs}\n`;
+                    output += `Total Pages: ${data.totalPages}\n`;
+                    output += `Total Juz: ${data.totalJuz}\n\n`;
+                    output += `First 5 Surahs:\n`;
+                    data.surahs.slice(0, 5).forEach(s => {
+                        output += `  ${s.number}. ${s.name} (${s.nameEn}) - ${s.ayahCount} ayahs\n`;
+                    });
+                    output += `\nFull Response:\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.textContent = output;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                }
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        // Auto-check server status on load
+        window.addEventListener('load', checkHealth);
+    </script>
+</body>
+</html>
