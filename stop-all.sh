@@ -66,7 +66,7 @@ else
 fi
 
 # Clean up log files
-rm -f backend.log frontend.log
+rm -f backend.log frontend.log backend-output.txt frontend-output.txt
 
 echo ""
 echo -e "${GREEN}All services stopped!${NC}"

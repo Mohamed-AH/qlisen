@@ -736,8 +736,15 @@
 
         // Analyze Full Recitation (Post-Processing)
         async function analyzeFullRecitation() {
+            console.log('🔍 analyzeFullRecitation called');
+            console.log('   Transcript:', transcript);
+            console.log('   Words count:', transcriptWords.length);
+            console.log('   API URL:', API_URL);
+
             if (transcriptWords.length < MIN_WORDS_FOR_DETECTION) {
-                updateStatus('error', 'التسجيل قصير جداً للتحليل (الحد الأدنى 5 كلمات)');
+                const msg = `التسجيل قصير جداً للتحليل (${transcriptWords.length} كلمة، الحد الأدنى ${MIN_WORDS_FOR_DETECTION})`;
+                console.warn('⚠️', msg);
+                updateStatus('error', msg);
                 showSessionSummary();
                 return;
             }
@@ -745,6 +752,10 @@
             updateStatus('detecting', '🔍 جاري تحليل تلاوتك...');
 
             const duration = sessionStart ? new Date() - sessionStart : 0;
+
+            console.log('📤 Sending analysis request...');
+            console.log('   URL:', `${API_URL}/api/recitation/analyze-full`);
+            console.log('   Duration:', duration);
 
             try {
                 const response = await fetch(`${API_URL}/api/recitation/analyze-full`, {
@@ -759,7 +770,9 @@
                     })
                 });
 
+                console.log('📥 Response received:', response.status);
                 const report = await response.json();
+                console.log('📊 Report:', report);
 
                 if (report.success) {
                     displayAnalysisReport(report);
@@ -781,8 +794,17 @@
                     showSessionSummary();
                 }
             } catch (error) {
-                console.error('Error analyzing recitation:', error);
-                updateStatus('error', 'فشل الاتصال بالخادم للتحليل');
+                console.error('❌ Error analyzing recitation:', error);
+                console.error('   Error type:', error.name);
+                console.error('   Error message:', error.message);
+
+                let errorMsg = 'فشل الاتصال بالخادم للتحليل';
+                if (error.message.includes('Failed to fetch')) {
+                    errorMsg = `فشل الاتصال بالخادم - تأكد من تكوين رابط API: ${API_URL}`;
+                }
+
+                updateStatus('error', errorMsg);
+                showError(`خطأ: ${error.message}`);
                 showSessionSummary();
             }
         }

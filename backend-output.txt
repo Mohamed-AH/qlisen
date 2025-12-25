@@ -1,0 +1,31 @@
+🚀 Starting Recitation API Test Server...
+
+🔄 Loading Quran data...
+✅ Quran data loaded successfully
+   📖 Verses: 6,236
+   📚 Surahs: 114
+   📄 Pages: 604
+   🔍 N-grams: 55,925
+
+✅ Server is running!
+📍 URL: http://localhost:5001
+
+📚 Available endpoints:
+   GET  /health - Health check
+   GET  /api/test/detect - Test position detection
+   POST /api/recitation/detect-position - Detect Quran position
+   GET  /api/recitation/pages?start=1&count=3 - Get pages
+   GET  /api/recitation/metadata - Get Quran metadata
+   GET  /api/recitation/surah/:surahNumber - Get surah verses
+   POST /api/recitation/sessions - Save session
+   GET  /api/recitation/sessions - Get sessions
+   GET  /api/recitation/stats - Get statistics
+
+💡 Test examples:
+   curl http://localhost:5001/health
+   curl http://localhost:5001/api/test/detect
+   curl -X POST http://localhost:5001/api/recitation/detect-position \
+        -H "Content-Type: application/json" \
+        -d '{"transcript":"بسم الله الرحمن الرحيم"}'
+
+2025-12-25T15:41:40.048Z - GET /health
