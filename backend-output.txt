@@ -28,4 +28,31 @@
         -H "Content-Type: application/json" \
         -d '{"transcript":"بسم الله الرحمن الرحيم"}'
 
-2025-12-25T16:02:35.424Z - GET /health
+2025-12-25T15:52:51.069Z - GET /health
+2025-12-25T15:53:03.980Z - GET /health
+2025-12-25T15:53:36.941Z - POST /api/recitation/analyze-full
+
+📊 FULL ANALYSIS REQUEST:
+   Session ID: N/A
+   Transcript length: 208 characters
+   Word count: 36
+   Duration: 30995 ms
+✅ ANALYSIS COMPLETE:
+   Surah: الفاتحة
+   Accuracy: 97.0%
+   Verses recited: 6 / 7
+   Verses skipped: 0
+   Processing time: 16399 ms
+2025-12-25T15:55:47.556Z - POST /api/recitation/analyze-full
+
+📊 FULL ANALYSIS REQUEST:
+   Session ID: N/A
+   Transcript length: 406 characters
+   Word count: 85
+   Duration: 60421 ms
+✅ ANALYSIS COMPLETE:
+   Surah: المائدة
+   Accuracy: 22.0%
+   Verses recited: 1 / 120
+   Verses skipped: 78
+   Processing time: 30831 ms
