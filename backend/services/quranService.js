@@ -123,8 +123,9 @@ class QuranService {
             .sort((a, b) => a[0] - b[0]); // Sort by verse ID
 
         // Find the best consecutive sequence of verses
-        let bestSequence = { start: -1, end: -1, totalScore: 0 };
-        let currentSequence = { start: -1, end: -1, totalScore: 0 };
+        // Track matched verses for skip detection
+        let bestSequence = { start: -1, end: -1, totalScore: 0, matchedVerses: new Set() };
+        let currentSequence = { start: -1, end: -1, totalScore: 0, matchedVerses: new Set() };
 
         for (let i = 0; i < sortedCandidates.length; i++) {
             const [verseId, score] = sortedCandidates[i];
@@ -132,24 +133,72 @@ class QuranService {
             // Start new sequence or continue existing one
             if (currentSequence.start === -1) {
                 // Start new sequence
-                currentSequence = { start: verseId, end: verseId, totalScore: score };
-            } else if (verseId <= currentSequence.end + 3) {
-                // Continue sequence (allow small gaps of up to 3 verses)
+                currentSequence = {
+                    start: verseId,
+                    end: verseId,
+                    totalScore: score,
+                    matchedVerses: new Set([verseId])
+                };
+            } else if (verseId <= currentSequence.end + 5) {
+                // Continue sequence (allow gaps up to 5 verses for skip detection)
                 currentSequence.end = verseId;
                 currentSequence.totalScore += score;
+                currentSequence.matchedVerses.add(verseId);
             } else {
                 // Sequence broken, check if it's the best so far
                 if (currentSequence.totalScore > bestSequence.totalScore) {
-                    bestSequence = { ...currentSequence };
+                    bestSequence = {
+                        start: currentSequence.start,
+                        end: currentSequence.end,
+                        totalScore: currentSequence.totalScore,
+                        matchedVerses: new Set(currentSequence.matchedVerses)
+                    };
                 }
                 // Start new sequence
-                currentSequence = { start: verseId, end: verseId, totalScore: score };
+                currentSequence = {
+                    start: verseId,
+                    end: verseId,
+                    totalScore: score,
+                    matchedVerses: new Set([verseId])
+                };
             }
         }
 
         // Check final sequence
         if (currentSequence.totalScore > bestSequence.totalScore) {
-            bestSequence = { ...currentSequence };
+            bestSequence = {
+                start: currentSequence.start,
+                end: currentSequence.end,
+                totalScore: currentSequence.totalScore,
+                matchedVerses: new Set(currentSequence.matchedVerses)
+            };
+        }
+
+        // Detect skipped verses within the sequence
+        const skippedVerses = [];
+        const recitedVerses = [];
+
+        for (let verseId = bestSequence.start; verseId <= bestSequence.end; verseId++) {
+            const verse = this.quranData[verseId];
+            if (!verse) continue;
+
+            // Only count verses from the same surah
+            if (verse.surah === this.quranData[bestSequence.start].surah) {
+                if (bestSequence.matchedVerses.has(verseId)) {
+                    recitedVerses.push({
+                        verseId: verseId,
+                        ayah: verse.ayah,
+                        surah: verse.surah
+                    });
+                } else {
+                    skippedVerses.push({
+                        verseId: verseId,
+                        ayah: verse.ayah,
+                        surah: verse.surah,
+                        surahName: verse.surahName
+                    });
+                }
+            }
         }
 
         // Use the first verse of the best sequence
@@ -205,9 +254,15 @@ class QuranService {
             },
             matchedText: startVerse.text,
             matchedVerseNormalized: startVerse.textNormalized,
+            // Recitation analysis
+            recitedVerses: recitedVerses.map(v => v.ayah),
+            skippedVerses: skippedVerses.map(v => v.ayah),
+            hasSkippedVerses: skippedVerses.length > 0,
             // Additional debug info
             sequenceInfo: {
                 versesDetected: bestSequence.end - bestSequence.start + 1,
+                versesRecited: recitedVerses.length,
+                versesSkipped: skippedVerses.length,
                 totalMatches: bestSequence.totalScore,
                 totalNgrams: ngrams.length
             }
