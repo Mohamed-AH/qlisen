@@ -1,0 +1,28 @@
+{
+  "name": "qlisen-backend",
+  "version": "1.0.0",
+  "description": "Quran Recitation Checker Backend - for integration with Hafiz",
+  "main": "test-server.js",
+  "scripts": {
+    "start": "node test-server.js",
+    "dev": "nodemon test-server.js",
+    "test": "node test-server.js"
+  },
+  "keywords": [
+    "quran",
+    "recitation",
+    "speech-recognition",
+    "hafiz",
+    "madani-mushaf"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "mongoose": "^7.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
