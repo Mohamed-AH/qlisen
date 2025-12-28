@@ -10,6 +10,130 @@ class RecitationAnalyzer {
     constructor(quranService) {
         this.quranService = quranService;
         this.preprocessor = new TextPreprocessor();
+        this.fastPathIndex = null;
+        this.buildFastPathIndex();
+    }
+
+    /**
+     * Build index of commonly recited passages for instant detection
+     */
+    buildFastPathIndex() {
+        this.fastPathIndex = [];
+
+        // 1. All surah beginnings (first 1-2 verses of each surah)
+        const surahStarts = new Map(); // surahId -> first verse ayah number
+        for (const verse of this.quranService.quranData) {
+            if (!surahStarts.has(verse.surah)) {
+                surahStarts.set(verse.surah, verse.ayah);
+            }
+        }
+
+        for (const [surahId, firstAyah] of surahStarts.entries()) {
+            // Get first 2 verses of the surah
+            const surahVerses = this.quranService.quranData.filter(v => v.surah === surahId);
+            const firstVerses = surahVerses.slice(0, Math.min(2, surahVerses.length));
+
+            const text = firstVerses.map(v => v.textNormalized).join(' ');
+            const surahName = firstVerses[0].surahName;
+
+            this.fastPathIndex.push({
+                type: 'surah_beginning',
+                surahId,
+                surahName,
+                startVerse: firstAyah,
+                endVerse: firstVerses[firstVerses.length - 1].ayah,
+                text,
+                description: `بداية ${surahName}`
+            });
+        }
+
+        // 2. Famous commonly recited passages
+        const famousPassages = [
+            // Ayatul Kursi
+            { surahId: 2, startVerse: 255, endVerse: 255, name: 'آية الكرسي' },
+
+            // Last 2 verses of Al-Baqarah
+            { surahId: 2, startVerse: 285, endVerse: 286, name: 'آخر آيتين من البقرة' },
+
+            // Last 10 verses of Al-Imran
+            { surahId: 3, startVerse: 190, endVerse: 200, name: 'آخر عشر آيات من آل عمران' },
+
+            // Ibadur Rahman from Al-Furqan (verses 63-77)
+            { surahId: 25, startVerse: 63, endVerse: 77, name: 'عباد الرحمن' },
+
+            // Al-Mulk first 10 verses (commonly recited before sleep)
+            { surahId: 67, startVerse: 1, endVerse: 10, name: 'أول عشر آيات من الملك' },
+
+            // Al-Kahf verses 1-10 (protection from Dajjal)
+            { surahId: 18, startVerse: 1, endVerse: 10, name: 'أول عشر آيات من الكهف' },
+
+            // Al-Kahf last 10 verses
+            { surahId: 18, startVerse: 101, endVerse: 110, name: 'آخر عشر آيات من الكهف' },
+        ];
+
+        for (const passage of famousPassages) {
+            const verses = this.quranService.quranData.filter(v =>
+                v.surah === passage.surahId &&
+                v.ayah >= passage.startVerse &&
+                v.ayah <= passage.endVerse
+            );
+
+            if (verses.length > 0) {
+                const text = verses.map(v => v.textNormalized).join(' ');
+
+                this.fastPathIndex.push({
+                    type: 'famous_passage',
+                    surahId: passage.surahId,
+                    surahName: verses[0].surahName,
+                    startVerse: passage.startVerse,
+                    endVerse: passage.endVerse,
+                    text,
+                    description: passage.name
+                });
+            }
+        }
+
+        console.log(`📚 Fast-path index built: ${this.fastPathIndex.length} patterns`);
+    }
+
+    /**
+     * Fast-path detection for commonly recited passages
+     * Checks transcript against surah beginnings and famous passages
+     */
+    detectFromFastPath(preprocessedText) {
+        // Extract first 30 words for comparison (enough for most beginnings)
+        const words = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+        const firstWords = words.slice(0, Math.min(30, words.length)).join(' ');
+
+        let bestMatch = null;
+        let bestSimilarity = 0;
+
+        // Check against all indexed patterns
+        for (const pattern of this.fastPathIndex) {
+            // For surah beginnings, compare with first 30 words
+            // For famous passages, compare with full text if transcript is longer
+            const compareText = pattern.type === 'surah_beginning' ? firstWords : preprocessedText;
+
+            // Calculate similarity
+            const similarity = levenshteinSimilarity(compareText, pattern.text);
+
+            if (similarity > bestSimilarity) {
+                bestSimilarity = similarity;
+                bestMatch = pattern;
+            }
+        }
+
+        // Return if strong match found (75% threshold)
+        if (bestSimilarity >= 0.75) {
+            return {
+                detected: true,
+                pattern: bestMatch,
+                similarity: bestSimilarity,
+                method: 'fast_path'
+            };
+        }
+
+        return { detected: false };
     }
 
     /**
@@ -17,6 +141,30 @@ class RecitationAnalyzer {
      */
     async identifySurah(preprocessedText) {
         const startTime = Date.now();
+
+        // 🚀 FAST PATH: Check commonly recited passages first
+        const fastPathResult = this.detectFromFastPath(preprocessedText);
+        if (fastPathResult.detected) {
+            const processingTime = Date.now() - startTime;
+            console.log(`⚡ Fast-path detection: ${fastPathResult.pattern.description} (${(fastPathResult.similarity * 100).toFixed(1)}% similarity, ${processingTime}ms)`);
+
+            return {
+                success: true,
+                primarySurah: {
+                    id: fastPathResult.pattern.surahId,
+                    name: fastPathResult.pattern.surahName,
+                    confidence: fastPathResult.similarity,
+                    detectionMethod: 'fast_path',
+                    passageType: fastPathResult.pattern.type,
+                    description: fastPathResult.pattern.description
+                },
+                additionalSurahs: [],
+                ambiguous: false,
+                processingTime
+            };
+        }
+
+        // Fallback to full n-gram search
         const { '2grams': ngrams2, '3grams': ngrams3, '4grams': ngrams4 } =
             this.preprocessor.extractAllNgrams(preprocessedText);
 
@@ -238,57 +386,21 @@ class RecitationAnalyzer {
      * Find the best continuous range from significant verses
      */
     findBestRange(significantVerses) {
-        // Find the continuous range with highest average accuracy
-        let bestRange = {
-            start: significantVerses[0].ayah,
-            end: significantVerses[0].ayah,
-            count: 1,
-            avgAccuracy: significantVerses[0].accuracy
-        };
-
-        let currentRange = {
-            start: significantVerses[0].ayah,
-            end: significantVerses[0].ayah,
-            count: 1,
-            totalAccuracy: significantVerses[0].accuracy
-        };
-
-        for (let i = 1; i < significantVerses.length; i++) {
-            const verse = significantVerses[i];
-            const prevVerse = significantVerses[i - 1];
-
-            // If within 2 verses of previous, extend current range
-            if (verse.ayah - prevVerse.ayah <= 2) {
-                currentRange.end = verse.ayah;
-                currentRange.count = currentRange.end - currentRange.start + 1;
-                currentRange.totalAccuracy += verse.accuracy;
-                const avgAccuracy = currentRange.totalAccuracy / currentRange.count;
-
-                // Update best if this range has more verses OR similar count but better accuracy
-                if (currentRange.count > bestRange.count ||
-                    (currentRange.count === bestRange.count && avgAccuracy > bestRange.avgAccuracy)) {
-                    bestRange = {
-                        start: currentRange.start,
-                        end: currentRange.end,
-                        count: currentRange.count,
-                        avgAccuracy
-                    };
-                }
-            } else {
-                // Gap too large, start new range
-                currentRange = {
-                    start: verse.ayah,
-                    end: verse.ayah,
-                    count: 1,
-                    totalAccuracy: verse.accuracy
-                };
-            }
+        // Use min-max approach: include all verses from first to last match
+        // Skip detection phase will identify which verses in between were actually skipped
+        if (significantVerses.length === 0) {
+            return { startVerse: 1, endVerse: 1, versesInRange: 1 };
         }
 
+        // Extract verse numbers and find min/max
+        const verseNumbers = significantVerses.map(v => v.ayah);
+        const startVerse = Math.min(...verseNumbers);
+        const endVerse = Math.max(...verseNumbers);
+
         return {
-            startVerse: bestRange.start,
-            endVerse: bestRange.end,
-            versesInRange: bestRange.count
+            startVerse,
+            endVerse,
+            versesInRange: endVerse - startVerse + 1
         };
     }
 

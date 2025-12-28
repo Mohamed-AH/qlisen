@@ -19,6 +19,129 @@ class TextPreprocessor {
 
         // Valid single-letter Arabic words
         this.validSingleLetters = new Set(['و', 'ب', 'ل', 'ف', 'ك']);
+
+        // Numeral to Arabic word mapping (for speech recognition numerals)
+        this.numeralToArabic = new Map([
+            // Common numbers in Quran
+            ['1', 'واحد'],
+            ['2', 'اثنين'],
+            ['3', 'ثلاثه'],
+            ['4', 'اربعه'],
+            ['5', 'خمسه'],
+            ['6', 'سته'],
+            ['7', 'سبعه'],
+            ['8', 'ثمانيه'],
+            ['9', 'تسعه'],
+            ['10', 'عشره'],
+            ['11', 'احد عشر'],
+            ['12', 'اثنا عشر'],
+            ['19', 'تسعه عشر'],
+            ['20', 'عشرين'],
+            ['30', 'ثلاثين'],
+            ['40', 'اربعين'],
+            ['50', 'خمسين'],
+            ['60', 'ستين'],
+            ['70', 'سبعين'],
+            ['80', 'ثمانين'],
+            ['90', 'تسعين'],
+            ['100', 'مايه'],
+            ['300', 'ثلاثمايه'],
+            ['1000', 'الف'],
+            ['2000', 'الفين'],
+            ['3000', 'ثلاثه الاف'],
+            ['50000', 'خمسين الف'],
+            ['100000', 'مايه الف']
+        ]);
+
+        // Common ritual phrases said before/after Quran recitation
+        // IMPORTANT: Only include phrases that are NOT in the Quran text
+        // "بسم الله الرحمن الرحيم" appears in Al-Fatiha and An-Naml, so we don't remove it
+        // "استعيذ بالله من الشيطان الرجيم" appears in Quran, so we don't remove it
+        this.ritualPhrases = {
+            // Opening phrases (before recitation) - SAFE to remove
+            opening: [
+                'اعوذ بالله من الشيطان الرجيم',  // NOT in Quran (uses أعوذ, not استعيذ)
+                'اعوذ بالله من الشيطان',
+            ],
+            // Closing phrases (after recitation) - SAFE to remove
+            closing: [
+                'صدق الله العظيم',   // NOT in Quran
+                'صدق الله',
+            ]
+        };
+    }
+
+    /**
+     * Convert numerals to Arabic words
+     * Speech recognition often outputs "300" instead of "ثلاثمائة"
+     */
+    convertNumeralsToArabic(text) {
+        const words = text.split(/\s+/);
+        const convertedWords = words.map(word => {
+            // Check if word is a pure numeral
+            if (/^\d+$/.test(word)) {
+                // Try to find exact match in our mapping
+                const arabicWord = this.numeralToArabic.get(word);
+                if (arabicWord) {
+                    return arabicWord;
+                }
+            }
+            return word;
+        });
+
+        return convertedWords.join(' ');
+    }
+
+    /**
+     * Remove ritual phrases from beginning and end of text
+     * People often say "أعوذ بالله" before and "صدق الله العظيم" after
+     */
+    removeRitualPhrases(text) {
+        let cleaned = text;
+
+        // First normalize to match phrases better
+        const normalized = this.normalizeArabic(cleaned);
+
+        // Remove opening phrases from the beginning
+        for (const phrase of this.ritualPhrases.opening) {
+            const normalizedPhrase = this.normalizeArabic(phrase);
+
+            // Check if text starts with this phrase
+            if (normalized.startsWith(normalizedPhrase)) {
+                // Remove from original text (preserve case)
+                const phraseLength = normalizedPhrase.split(/\s+/).length;
+                const words = cleaned.split(/\s+/);
+                cleaned = words.slice(phraseLength).join(' ').trim();
+
+                // Re-normalize for next iteration
+                const newNormalized = this.normalizeArabic(cleaned);
+                if (newNormalized !== normalized) {
+                    return this.removeRitualPhrases(cleaned); // Recursively check again
+                }
+            }
+        }
+
+        // Remove closing phrases from the end
+        const normalizedForClosing = this.normalizeArabic(cleaned);
+        for (const phrase of this.ritualPhrases.closing) {
+            const normalizedPhrase = this.normalizeArabic(phrase);
+
+            // Check if text ends with this phrase
+            if (normalizedForClosing.endsWith(normalizedPhrase)) {
+                // Remove from original text
+                const phraseLength = normalizedPhrase.split(/\s+/).length;
+                const words = cleaned.split(/\s+/);
+                cleaned = words.slice(0, -phraseLength).join(' ').trim();
+
+                // Re-normalize for next iteration
+                const newNormalized = this.normalizeArabic(cleaned);
+                if (newNormalized !== normalizedForClosing) {
+                    return this.removeRitualPhrases(cleaned); // Recursively check again
+                }
+            }
+        }
+
+        return cleaned;
     }
 
     /**
@@ -113,13 +236,19 @@ class TextPreprocessor {
      * Full preprocessing pipeline
      */
     preprocess(rawTranscript) {
-        // Step 1: Normalize
-        const normalized = this.normalizeArabic(rawTranscript);
+        // Step 1: Convert numerals to Arabic words (speech recognition fix)
+        const withArabicNumbers = this.convertNumeralsToArabic(rawTranscript);
 
-        // Step 2: Remove garbage
+        // Step 2: Remove ritual phrases (audhu billah, sadaqallahu, etc.)
+        const withoutRituals = this.removeRitualPhrases(withArabicNumbers);
+
+        // Step 3: Normalize
+        const normalized = this.normalizeArabic(withoutRituals);
+
+        // Step 4: Remove garbage
         const cleaned = this.removeGarbage(normalized);
 
-        // Step 3: Final normalization
+        // Step 5: Final normalization
         const final = this.normalizeArabic(cleaned);
 
         return {
