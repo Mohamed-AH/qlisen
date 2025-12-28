@@ -1215,10 +1215,24 @@ class RecitationAnalyzer {
             if (ngramResult.success && ngramResult.primarySurah) {
                 console.log(`   Candidate: ${ngramResult.primarySurah.name} (confidence: ${(ngramResult.primarySurah.confidence * 100).toFixed(1)}%)`);
 
-                // Get all verses from detected surah
-                const candidateVerses = this.getCandidateVerses(ngramResult.primarySurah.id);
+                // For n-gram: First detect verse range, THEN verify
+                console.log('   Detecting verse range within surah...');
+                const alignmentResult = await this.alignToVerses(
+                    preprocessed.normalized,
+                    ngramResult.primarySurah.id
+                );
 
-                // VERIFY using ENTIRE transcript
+                const verseRange = alignmentResult.verseRange;
+                console.log(`   Detected range: verses ${verseRange.startVerse}-${verseRange.endVerse} (${verseRange.versesInRange} verses)`);
+
+                // Get ONLY the detected verses (not entire surah)
+                const candidateVerses = this.getCandidateVerses(
+                    ngramResult.primarySurah.id,
+                    verseRange.startVerse,
+                    verseRange.endVerse
+                );
+
+                // VERIFY using the detected verse range
                 const verification = this.verifyPositionStrict(
                     preprocessed.normalized,
                     candidateVerses
@@ -1228,12 +1242,11 @@ class RecitationAnalyzer {
                     console.log(`\n✅ PASS 2 ACCEPTED - Proceeding with n-gram result\n`);
 
                     // Position verified! Proceed to detailed analysis
-                    // Note: For n-gram, we detect verse range during alignment
                     return await this.performDetailedAnalysis(
                         preprocessed.normalized,
                         ngramResult.primarySurah.id,
-                        null,  // Let alignToVerses detect range
-                        null,
+                        verseRange.startVerse,
+                        verseRange.endVerse,
                         {
                             ...metadata,
                             detectionMethod: 'ngram_verified',
@@ -1252,7 +1265,7 @@ class RecitationAnalyzer {
                             method: 'ngram',
                             surah: ngramResult.primarySurah.name,
                             surahId: ngramResult.primarySurah.id,
-                            verses: 'full_surah'
+                            verses: `${verseRange.startVerse}-${verseRange.endVerse}`
                         };
                         bestVerification = verification;
                     }
