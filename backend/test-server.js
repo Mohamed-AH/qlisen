@@ -6,6 +6,9 @@
  * Test endpoints at: http://localhost:5001/api/recitation/*
  */
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -49,6 +52,13 @@ async function initializeServer() {
         // Start queue processor (checks queue every 30 seconds)
         queueProcessor.start(30000);
         console.log('⚙️  Queue processor started');
+
+        // Log Whisper configuration
+        const whisperMode = process.env.USE_REMOTE_WHISPER === 'true' ? 'remote' :
+                           process.env.USE_LOCAL_WHISPER === 'true' ? 'local' :
+                           process.env.OPENAI_API_KEY ? 'api' : 'unknown';
+        const whisperURL = process.env.WHISPER_URL || 'not set';
+        console.log(`🔊 Whisper mode: ${whisperMode}${whisperMode === 'remote' ? ` (${whisperURL})` : ''}`);
 
         // Health check endpoint
         app.get('/health', (req, res) => {
