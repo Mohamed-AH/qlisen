@@ -11,13 +11,18 @@ class RecitationAnalyzer {
         this.quranService = quranService;
         this.preprocessor = new TextPreprocessor();
         this.fastPathIndex = null;
-        this.buildFastPathIndex();
+        // Don't build index in constructor - will be built lazily on first use
     }
 
     /**
      * Build index of commonly recited passages for instant detection
      */
     buildFastPathIndex() {
+        // Skip if already built or if quranData not available yet
+        if (this.fastPathIndex !== null || !this.quranService.quranData) {
+            return;
+        }
+
         this.fastPathIndex = [];
 
         // 1. All surah beginnings (first 1-2 verses of each surah)
@@ -101,6 +106,14 @@ class RecitationAnalyzer {
      * Checks transcript against surah beginnings and famous passages
      */
     detectFromFastPath(preprocessedText) {
+        // Build fast path index if not already built
+        this.buildFastPathIndex();
+
+        // If index still null (quranData not available), return no match
+        if (!this.fastPathIndex) {
+            return { detected: false };
+        }
+
         // Extract first 30 words for comparison (enough for most beginnings)
         const words = preprocessedText.split(/\s+/).filter(w => w.length > 0);
         const firstWords = words.slice(0, Math.min(30, words.length)).join(' ');
