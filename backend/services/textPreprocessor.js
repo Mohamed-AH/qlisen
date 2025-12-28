@@ -19,6 +19,60 @@ class TextPreprocessor {
 
         // Valid single-letter Arabic words
         this.validSingleLetters = new Set(['و', 'ب', 'ل', 'ف', 'ك']);
+
+        // Numeral to Arabic word mapping (for speech recognition numerals)
+        this.numeralToArabic = new Map([
+            // Common numbers in Quran
+            ['1', 'واحد'],
+            ['2', 'اثنين'],
+            ['3', 'ثلاثه'],
+            ['4', 'اربعه'],
+            ['5', 'خمسه'],
+            ['6', 'سته'],
+            ['7', 'سبعه'],
+            ['8', 'ثمانيه'],
+            ['9', 'تسعه'],
+            ['10', 'عشره'],
+            ['11', 'احد عشر'],
+            ['12', 'اثنا عشر'],
+            ['19', 'تسعه عشر'],
+            ['20', 'عشرين'],
+            ['30', 'ثلاثين'],
+            ['40', 'اربعين'],
+            ['50', 'خمسين'],
+            ['60', 'ستين'],
+            ['70', 'سبعين'],
+            ['80', 'ثمانين'],
+            ['90', 'تسعين'],
+            ['100', 'مايه'],
+            ['300', 'ثلاثمايه'],
+            ['1000', 'الف'],
+            ['2000', 'الفين'],
+            ['3000', 'ثلاثه الاف'],
+            ['50000', 'خمسين الف'],
+            ['100000', 'مايه الف']
+        ]);
+    }
+
+    /**
+     * Convert numerals to Arabic words
+     * Speech recognition often outputs "300" instead of "ثلاثمائة"
+     */
+    convertNumeralsToArabic(text) {
+        const words = text.split(/\s+/);
+        const convertedWords = words.map(word => {
+            // Check if word is a pure numeral
+            if (/^\d+$/.test(word)) {
+                // Try to find exact match in our mapping
+                const arabicWord = this.numeralToArabic.get(word);
+                if (arabicWord) {
+                    return arabicWord;
+                }
+            }
+            return word;
+        });
+
+        return convertedWords.join(' ');
     }
 
     /**
@@ -113,13 +167,16 @@ class TextPreprocessor {
      * Full preprocessing pipeline
      */
     preprocess(rawTranscript) {
-        // Step 1: Normalize
-        const normalized = this.normalizeArabic(rawTranscript);
+        // Step 1: Convert numerals to Arabic words (speech recognition fix)
+        const withArabicNumbers = this.convertNumeralsToArabic(rawTranscript);
 
-        // Step 2: Remove garbage
+        // Step 2: Normalize
+        const normalized = this.normalizeArabic(withArabicNumbers);
+
+        // Step 3: Remove garbage
         const cleaned = this.removeGarbage(normalized);
 
-        // Step 3: Final normalization
+        // Step 4: Final normalization
         const final = this.normalizeArabic(cleaned);
 
         return {
