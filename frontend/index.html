@@ -44,11 +44,33 @@
                     اضغط على زر الاستماع وابدأ التلاوة، ثم اضغط مرة أخرى للتوقف
                 </p>
 
-                <!-- Record Button -->
-                <button id="recordBtn" class="btn record-btn" onclick="toggleRecording()">
-                    <span class="btn-icon" id="recordIcon">🎤</span>
-                    <span class="btn-text" id="recordText">استمع</span>
-                </button>
+                <!-- Upload Instructions (hidden by default, shown on iOS/unsupported devices) -->
+                <p id="uploadInstructions" class="instructions hidden">
+                    سجل صوتك باستخدام تطبيق التسجيل في هاتفك، ثم ارفع الملف هنا
+                </p>
+
+                <!-- Action Buttons Container -->
+                <div class="action-buttons">
+                    <!-- Record Button -->
+                    <button id="recordBtn" class="btn record-btn" onclick="toggleRecording()">
+                        <span class="btn-icon" id="recordIcon">🎤</span>
+                        <span class="btn-text" id="recordText">استمع</span>
+                    </button>
+
+                    <!-- Divider (shown when both options available) -->
+                    <div id="optionDivider" class="option-divider hidden">
+                        <span id="orText">أو</span>
+                    </div>
+
+                    <!-- Upload Button -->
+                    <button id="uploadBtn" class="btn upload-btn hidden" onclick="triggerFileUpload()">
+                        <span class="btn-icon">📁</span>
+                        <span class="btn-text" id="uploadText">ارفع ملف</span>
+                    </button>
+
+                    <!-- Hidden File Input -->
+                    <input type="file" id="fileInput" accept="audio/*" onchange="handleFileUpload(event)" class="hidden">
+                </div>
 
                 <!-- Recording Status -->
                 <div id="recordingStatus" class="recording-status hidden">

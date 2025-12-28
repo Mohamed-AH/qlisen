@@ -241,10 +241,27 @@ header {
     transform: translateY(-2px);
 }
 
-.record-btn {
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+}
+
+.record-btn,
+.upload-btn {
     font-size: 1.5rem;
     padding: var(--spacing-lg) var(--spacing-xl);
-    margin: var(--spacing-lg) 0;
+    min-width: 250px;
+}
+
+.upload-btn {
+    background: linear-gradient(135deg, var(--sage) 0%, #a8c5a5 100%);
+}
+
+.upload-btn:hover {
+    box-shadow: 0 6px 20px rgba(138, 168, 136, 0.6);
 }
 
 .btn-icon {
@@ -254,6 +271,29 @@ header {
 .record-btn.recording {
     background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
     box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+.option-divider {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 300px;
+    margin: var(--spacing-sm) 0;
+}
+
+.option-divider::before,
+.option-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(212, 175, 55, 0.3);
+}
+
+.option-divider span {
+    padding: 0 var(--spacing-md);
+    color: var(--sage);
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
 /* ========================================
