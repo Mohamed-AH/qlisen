@@ -128,23 +128,22 @@ class RecitationAnalyzer {
             return { detected: false };
         }
 
-        // Extract first 30 words for comparison (enough for most beginnings)
-        const words = preprocessedText.split(/\s+/).filter(w => w.length > 0);
-        const firstWords = words.slice(0, Math.min(30, words.length)).join(' ');
-
         let bestMatch = null;
         let bestSimilarity = 0;
         let topMatches = [];
 
         // Check against all indexed patterns
         for (const pattern of this.fastPathIndex) {
-            // For all patterns, compare transcript beginning with pattern beginning
-            // Extract first 30 words from pattern for fair comparison
+            // Count words in pattern
             const patternWords = pattern.text.split(/\s+/).filter(w => w.length > 0);
-            const patternFirstWords = patternWords.slice(0, Math.min(30, patternWords.length)).join(' ');
+            const patternWordCount = patternWords.length;
 
-            // Calculate similarity using first 30 words of both
-            const similarity = levenshteinSimilarity(firstWords, patternFirstWords);
+            // Extract same number of words from transcript for fair comparison
+            const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+            const transcriptSlice = transcriptWords.slice(0, patternWordCount).join(' ');
+
+            // Calculate similarity using equal-length strings
+            const similarity = levenshteinSimilarity(transcriptSlice, pattern.text);
 
             topMatches.push({ pattern: pattern.description, similarity });
 
