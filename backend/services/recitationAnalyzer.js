@@ -38,18 +38,32 @@ class RecitationAnalyzer {
             const surahVerses = this.quranService.quranData.filter(v => v.surah === surahId);
             const firstVerses = surahVerses.slice(0, Math.min(2, surahVerses.length));
 
-            const text = firstVerses.map(v => v.textNormalized).join(' ');
             const surahName = firstVerses[0].surahName;
 
+            // Index JUST verse 1 separately (for single-verse recitations)
             this.fastPathIndex.push({
                 type: 'surah_beginning',
                 surahId,
                 surahName,
                 startVerse: firstAyah,
-                endVerse: firstVerses[firstVerses.length - 1].ayah,
-                text,
-                description: `بداية ${surahName}`
+                endVerse: firstAyah,
+                text: firstVerses[0].textNormalized,
+                description: `بداية ${surahName} (آية ${firstAyah})`
             });
+
+            // Also index verses 1+2 together (for longer recitations)
+            if (firstVerses.length >= 2) {
+                const combinedText = firstVerses.map(v => v.textNormalized).join(' ');
+                this.fastPathIndex.push({
+                    type: 'surah_beginning',
+                    surahId,
+                    surahName,
+                    startVerse: firstAyah,
+                    endVerse: firstVerses[1].ayah,
+                    text: combinedText,
+                    description: `بداية ${surahName} (آيات ${firstAyah}-${firstVerses[1].ayah})`
+                });
+            }
         }
 
         // 2. Famous commonly recited passages
