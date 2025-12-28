@@ -11,9 +11,16 @@ const cors = require('cors');
 const path = require('path');
 const quranService = require('./services/quranService');
 const recitationRoutes = require('./routes/recitation');
+const transcriptionRoutes = require('./routes/transcription');
+const QueueService = require('./services/queueService');
+const QueueProcessor = require('./services/queueProcessor');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+
+// Initialize queue service and processor
+const queueService = new QueueService();
+const queueProcessor = new QueueProcessor(queueService);
 
 // Middleware
 app.use(cors());
@@ -37,6 +44,11 @@ async function initializeServer() {
 
         // Mount routes
         app.use('/api/recitation', recitationRoutes);
+        app.use('/api/transcription', transcriptionRoutes);
+
+        // Start queue processor (checks queue every 30 seconds)
+        queueProcessor.start(30000);
+        console.log('⚙️  Queue processor started');
 
         // Health check endpoint
         app.get('/health', (req, res) => {
@@ -98,6 +110,8 @@ async function initializeServer() {
             console.log('\n📚 Available endpoints:');
             console.log(`   GET  /health - Health check`);
             console.log(`   GET  /api/test/detect - Test position detection`);
+            console.log('');
+            console.log('   📖 Recitation API:');
             console.log(`   POST /api/recitation/detect-position - Detect Quran position`);
             console.log(`   GET  /api/recitation/pages?start=1&count=3 - Get pages`);
             console.log(`   GET  /api/recitation/metadata - Get Quran metadata`);
@@ -105,6 +119,13 @@ async function initializeServer() {
             console.log(`   POST /api/recitation/sessions - Save session`);
             console.log(`   GET  /api/recitation/sessions - Get sessions`);
             console.log(`   GET  /api/recitation/stats - Get statistics`);
+            console.log('');
+            console.log('   🎤 Transcription API:');
+            console.log(`   POST /api/transcription/analyze - Upload & analyze (with queue support)`);
+            console.log(`   POST /api/transcription/transcribe-only - Transcribe only`);
+            console.log(`   GET  /api/transcription/health - Check Whisper status`);
+            console.log(`   GET  /api/transcription/job/:jobId - Check job status`);
+            console.log(`   GET  /api/transcription/queue/stats - Queue statistics`);
             console.log('\n💡 Test examples:');
             console.log(`   curl http://localhost:${PORT}/health`);
             console.log(`   curl http://localhost:${PORT}/api/test/detect`);
@@ -123,11 +144,15 @@ async function initializeServer() {
 // Handle graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n\n👋 Shutting down server...');
+    queueProcessor.stop();
+    console.log('⏹️  Queue processor stopped');
     process.exit(0);
 });
 
 process.on('SIGTERM', () => {
     console.log('\n\n👋 Shutting down server...');
+    queueProcessor.stop();
+    console.log('⏹️  Queue processor stopped');
     process.exit(0);
 });
 
