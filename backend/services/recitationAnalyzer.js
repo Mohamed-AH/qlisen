@@ -769,11 +769,11 @@ class RecitationAnalyzer {
             // Preprocessing
             const preprocessed = this.preprocessor.preprocess(rawTranscript);
 
-            if (preprocessed.wordCount < 5) {
+            if (preprocessed.wordCount < 3) {
                 return {
                     success: false,
                     error: 'insufficient_data',
-                    message: 'Transcript too short for analysis (minimum 5 words after cleaning)',
+                    message: 'Transcript too short for analysis (minimum 3 words after cleaning)',
                     wordCount: preprocessed.wordCount
                 };
             }
