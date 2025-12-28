@@ -238,57 +238,21 @@ class RecitationAnalyzer {
      * Find the best continuous range from significant verses
      */
     findBestRange(significantVerses) {
-        // Find the continuous range with highest average accuracy
-        let bestRange = {
-            start: significantVerses[0].ayah,
-            end: significantVerses[0].ayah,
-            count: 1,
-            avgAccuracy: significantVerses[0].accuracy
-        };
-
-        let currentRange = {
-            start: significantVerses[0].ayah,
-            end: significantVerses[0].ayah,
-            count: 1,
-            totalAccuracy: significantVerses[0].accuracy
-        };
-
-        for (let i = 1; i < significantVerses.length; i++) {
-            const verse = significantVerses[i];
-            const prevVerse = significantVerses[i - 1];
-
-            // If within 2 verses of previous, extend current range
-            if (verse.ayah - prevVerse.ayah <= 2) {
-                currentRange.end = verse.ayah;
-                currentRange.count = currentRange.end - currentRange.start + 1;
-                currentRange.totalAccuracy += verse.accuracy;
-                const avgAccuracy = currentRange.totalAccuracy / currentRange.count;
-
-                // Update best if this range has more verses OR similar count but better accuracy
-                if (currentRange.count > bestRange.count ||
-                    (currentRange.count === bestRange.count && avgAccuracy > bestRange.avgAccuracy)) {
-                    bestRange = {
-                        start: currentRange.start,
-                        end: currentRange.end,
-                        count: currentRange.count,
-                        avgAccuracy
-                    };
-                }
-            } else {
-                // Gap too large, start new range
-                currentRange = {
-                    start: verse.ayah,
-                    end: verse.ayah,
-                    count: 1,
-                    totalAccuracy: verse.accuracy
-                };
-            }
+        // Use min-max approach: include all verses from first to last match
+        // Skip detection phase will identify which verses in between were actually skipped
+        if (significantVerses.length === 0) {
+            return { startVerse: 1, endVerse: 1, versesInRange: 1 };
         }
 
+        // Extract verse numbers and find min/max
+        const verseNumbers = significantVerses.map(v => v.ayah);
+        const startVerse = Math.min(...verseNumbers);
+        const endVerse = Math.max(...verseNumbers);
+
         return {
-            startVerse: bestRange.start,
-            endVerse: bestRange.end,
-            versesInRange: bestRange.count
+            startVerse,
+            endVerse,
+            versesInRange: endVerse - startVerse + 1
         };
     }
 
