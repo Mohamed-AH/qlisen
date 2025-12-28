@@ -1,6 +1,6 @@
 const WhisperService = require('./whisperService');
 const RecitationAnalyzer = require('./recitationAnalyzer');
-const QuranService = require('./quranService');
+const quranService = require('./quranService'); // Singleton instance
 const EmailService = require('./emailService');
 
 /**
@@ -11,7 +11,7 @@ class QueueProcessor {
     constructor(queueService) {
         this.queueService = queueService;
         this.whisperService = new WhisperService();
-        this.quranService = new QuranService();
+        this.quranService = quranService;
         this.recitationAnalyzer = new RecitationAnalyzer(this.quranService);
         this.emailService = new EmailService();
 
