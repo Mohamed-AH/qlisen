@@ -92,7 +92,11 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
         // Transcription successful - proceed with analysis
         const transcript = transcriptionResult.transcript;
         console.log('✅ Transcription successful');
-        console.log('   Transcript:', transcript.substring(0, 100) + '...');
+        console.log('   Transcript length:', transcript.length, 'chars');
+        console.log('\n📝 Full transcript:');
+        console.log('═══════════════════════════════════════════════════════');
+        console.log(transcript);
+        console.log('═══════════════════════════════════════════════════════\n');
 
         // Step 2: Analyze Quran position
         console.log('\n🎯 Step 2: Analyzing Quran position...');
