@@ -52,6 +52,28 @@ class TextPreprocessor {
             ['50000', 'خمسين الف'],
             ['100000', 'مايه الف']
         ]);
+
+        // Common ritual phrases said before/after Quran recitation
+        // These are NOT part of the Quran text and should be removed
+        this.ritualPhrases = {
+            // Opening phrases (before recitation)
+            opening: [
+                'اعوذ بالله من الشيطان الرجيم',
+                'اعوذ بالله من الشيطان',
+                'استعيذ بالله من الشيطان الرجيم',
+                'بسم الله الرحمن الرحيم', // Only at beginning (could be ritual or Al-Fatiha)
+                'بسم الله',
+            ],
+            // Closing phrases (after recitation)
+            closing: [
+                'صدق الله العظيم',
+                'صدق الله',
+                'والله اعلم',
+                'سبحان ربك رب العزه عما يصفون',
+                'وسلام علي المرسلين',
+                'والحمد لله رب العالمين'
+            ]
+        };
     }
 
     /**
@@ -73,6 +95,58 @@ class TextPreprocessor {
         });
 
         return convertedWords.join(' ');
+    }
+
+    /**
+     * Remove ritual phrases from beginning and end of text
+     * People often say "أعوذ بالله" before and "صدق الله العظيم" after
+     */
+    removeRitualPhrases(text) {
+        let cleaned = text;
+
+        // First normalize to match phrases better
+        const normalized = this.normalizeArabic(cleaned);
+
+        // Remove opening phrases from the beginning
+        for (const phrase of this.ritualPhrases.opening) {
+            const normalizedPhrase = this.normalizeArabic(phrase);
+
+            // Check if text starts with this phrase
+            if (normalized.startsWith(normalizedPhrase)) {
+                // Remove from original text (preserve case)
+                const phraseLength = normalizedPhrase.split(/\s+/).length;
+                const words = cleaned.split(/\s+/);
+                cleaned = words.slice(phraseLength).join(' ').trim();
+
+                // Re-normalize for next iteration
+                const newNormalized = this.normalizeArabic(cleaned);
+                if (newNormalized !== normalized) {
+                    return this.removeRitualPhrases(cleaned); // Recursively check again
+                }
+            }
+        }
+
+        // Remove closing phrases from the end
+        const normalizedForClosing = this.normalizeArabic(cleaned);
+        for (const phrase of this.ritualPhrases.closing) {
+            const normalizedPhrase = this.normalizeArabic(phrase);
+
+            // Check if text ends with this phrase
+            if (normalizedForClosing.endsWith(normalizedPhrase)) {
+                // Remove from original text
+                const phraseLength = normalizedPhrase.split(/\s+/).length;
+                const words = cleaned.split(/\s+/);
+                cleaned = words.slice(0, -phraseLength).join(' ').trim();
+
+                // Re-normalize for next iteration
+                const newNormalized = this.normalizeArabic(cleaned);
+                if (newNormalized !== normalizedForClosing) {
+                    return this.removeRitualPhrases(cleaned); // Recursively check again
+                }
+            }
+        }
+
+        return cleaned;
     }
 
     /**
@@ -170,13 +244,16 @@ class TextPreprocessor {
         // Step 1: Convert numerals to Arabic words (speech recognition fix)
         const withArabicNumbers = this.convertNumeralsToArabic(rawTranscript);
 
-        // Step 2: Normalize
-        const normalized = this.normalizeArabic(withArabicNumbers);
+        // Step 2: Remove ritual phrases (audhu billah, sadaqallahu, etc.)
+        const withoutRituals = this.removeRitualPhrases(withArabicNumbers);
 
-        // Step 3: Remove garbage
+        // Step 3: Normalize
+        const normalized = this.normalizeArabic(withoutRituals);
+
+        // Step 4: Remove garbage
         const cleaned = this.removeGarbage(normalized);
 
-        // Step 4: Final normalization
+        // Step 5: Final normalization
         const final = this.normalizeArabic(cleaned);
 
         return {
