@@ -284,9 +284,16 @@ async function handleFileUpload(event) {
         return;
     }
 
-    // Validate file type
-    if (!file.type.startsWith('audio/')) {
+    // Validate file type - check both MIME type and extension
+    // iOS sometimes doesn't set MIME type correctly, so check extension as fallback
+    const validAudioExtensions = ['.ogg', '.oga', '.opus', '.m4a', '.mp3', '.wav', '.webm', '.aac', '.flac', '.mp4'];
+    const fileName = file.name.toLowerCase();
+    const hasValidExtension = validAudioExtensions.some(ext => fileName.endsWith(ext));
+    const hasAudioMimeType = file.type.startsWith('audio/') || file.type === 'video/mp4'; // m4a sometimes shows as video/mp4
+
+    if (!hasAudioMimeType && !hasValidExtension) {
         UI.showError(t('errorFileType') || 'Please select an audio file');
+        console.log('Invalid file type:', file.type, 'Extension:', fileName.split('.').pop());
         return;
     }
 
@@ -297,7 +304,7 @@ async function handleFileUpload(event) {
         return;
     }
 
-    console.log('File selected:', file.name, file.type, file.size, 'bytes');
+    console.log('✅ File accepted:', file.name, file.type, file.size, 'bytes');
 
     // Update state
     AppState.isProcessing = true;

@@ -128,6 +128,13 @@ class RecitationAnalyzer {
             return { detected: false };
         }
 
+        // FAST-PATH ONLY CHECKS FIRST FEW WORDS (not entire recitation)
+        const FAST_PATH_WORD_LIMIT = 15;  // Maximum words to check for fast-path
+        const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+        const limitedTranscript = transcriptWords.slice(0, FAST_PATH_WORD_LIMIT).join(' ');
+
+        console.log(`🚀 Fast-path: Checking first ${Math.min(transcriptWords.length, FAST_PATH_WORD_LIMIT)} words only`);
+
         let bestMatch = null;
         let bestSimilarity = 0;
         let topMatches = [];
@@ -138,9 +145,9 @@ class RecitationAnalyzer {
             const patternWords = pattern.text.split(/\s+/).filter(w => w.length > 0);
             const patternWordCount = patternWords.length;
 
-            // Extract same number of words from transcript for fair comparison
-            const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
-            const transcriptSlice = transcriptWords.slice(0, patternWordCount).join(' ');
+            // Extract same number of words from LIMITED transcript for fair comparison
+            const limitedWords = limitedTranscript.split(/\s+/).filter(w => w.length > 0);
+            const transcriptSlice = limitedWords.slice(0, patternWordCount).join(' ');
 
             // Calculate similarity using equal-length strings
             const similarity = levenshteinSimilarity(transcriptSlice, pattern.text);
@@ -724,6 +731,130 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Calculate sequential match rate - how many verse words appear IN ORDER in transcript
+     * This is the MOST IMPORTANT metric for verifying correct position
+     */
+    calculateSequentialMatch(transcriptWords, verseWords) {
+        let transcriptPos = 0;
+        let matchedInOrder = 0;
+
+        for (const verseWord of verseWords) {
+            let found = false;
+
+            // Search forward in transcript from current position
+            for (let i = transcriptPos; i < transcriptWords.length; i++) {
+                const similarity = levenshteinSimilarity(verseWord, transcriptWords[i]);
+
+                if (similarity >= 0.85) {  // Exact or very close match
+                    matchedInOrder++;
+                    transcriptPos = i + 1;  // Move forward past this match
+                    found = true;
+                    break;
+                }
+            }
+
+            // If not found in order, we've broken the sequence
+            if (!found) {
+                // Don't break - continue checking remaining words
+                // This gives us a ratio of how many words matched in order
+            }
+        }
+
+        return verseWords.length > 0 ? matchedInOrder / verseWords.length : 0;
+    }
+
+    /**
+     * Calculate coverage - what % of verse words exist ANYWHERE in transcript
+     */
+    calculateCoverage(transcriptWords, verseWords) {
+        let found = 0;
+
+        for (const verseWord of verseWords) {
+            // Check if this verse word exists anywhere in transcript (order doesn't matter)
+            const exists = transcriptWords.some(tw =>
+                levenshteinSimilarity(verseWord, tw) >= 0.85
+            );
+
+            if (exists) found++;
+        }
+
+        return verseWords.length > 0 ? found / verseWords.length : 0;
+    }
+
+    /**
+     * Strict position verification using sequence matching
+     * Uses ENTIRE transcript to verify candidate position
+     */
+    verifyPositionStrict(fullTranscript, candidateVerses) {
+        if (!candidateVerses || candidateVerses.length === 0) {
+            return {
+                verified: false,
+                confidence: 'very_low',
+                reason: 'No candidate verses provided'
+            };
+        }
+
+        // Extract words from full transcript
+        const transcriptWords = fullTranscript.split(/\s+/).filter(w => w.length > 0);
+
+        // Extract words from candidate verses
+        const verseWords = candidateVerses
+            .map(v => v.textNormalized || v.text)
+            .join(' ')
+            .split(/\s+/)
+            .filter(w => w.length > 0);
+
+        if (transcriptWords.length === 0 || verseWords.length === 0) {
+            return {
+                verified: false,
+                confidence: 'very_low',
+                reason: 'Empty transcript or verses'
+            };
+        }
+
+        // Calculate all three metrics
+        const sequential = this.calculateSequentialMatch(transcriptWords, verseWords);
+        const coverage = this.calculateCoverage(transcriptWords, verseWords);
+        const countRatio = transcriptWords.length / verseWords.length;
+
+        // Log verification details
+        console.log(`📊 Verification metrics:`);
+        console.log(`   Sequential match: ${(sequential * 100).toFixed(1)}%`);
+        console.log(`   Coverage: ${(coverage * 100).toFixed(1)}%`);
+        console.log(`   Word count ratio: ${countRatio.toFixed(2)} (transcript: ${transcriptWords.length}, verses: ${verseWords.length})`);
+
+        // Apply strict verification rules
+        // HIGH CONFIDENCE: Sequential ≥85%, ratio 0.8-1.2, coverage ≥80%
+        if (sequential >= 0.85 && countRatio >= 0.8 && countRatio <= 1.2 && coverage >= 0.80) {
+            console.log(`✅ Position VERIFIED (High Confidence)`);
+            return {
+                verified: true,
+                confidence: 'high',
+                scores: { sequential, coverage, countRatio }
+            };
+        }
+
+        // MEDIUM CONFIDENCE: Sequential ≥70%, ratio 0.7-1.3, coverage ≥70%
+        if (sequential >= 0.70 && countRatio >= 0.7 && countRatio <= 1.3 && coverage >= 0.70) {
+            console.log(`⚠️  Position VERIFIED (Medium Confidence)`);
+            return {
+                verified: true,
+                confidence: 'medium',
+                scores: { sequential, coverage, countRatio }
+            };
+        }
+
+        // LOW CONFIDENCE: Reject
+        console.log(`❌ Position REJECTED (Low Confidence)`);
+        return {
+            verified: false,
+            confidence: 'low',
+            scores: { sequential, coverage, countRatio },
+            reason: `Sequential: ${(sequential * 100).toFixed(1)}%, Coverage: ${(coverage * 100).toFixed(1)}%, Ratio: ${countRatio.toFixed(2)}`
+        };
+    }
+
+    /**
      * Phase 3: Detect skipped verses
      */
     detectSkips(alignments) {
@@ -840,7 +971,25 @@ class RecitationAnalyzer {
     }
 
     /**
-     * Main analysis pipeline - runs all 4 phases
+     * Helper: Get verses for a candidate position
+     */
+    getCandidateVerses(surahId, startVerse = null, endVerse = null) {
+        if (startVerse && endVerse) {
+            // Specific verse range
+            return this.quranService.quranData.filter(v =>
+                v.surah === surahId &&
+                v.ayah >= startVerse &&
+                v.ayah <= endVerse
+            );
+        } else {
+            // Entire surah
+            return this.quranService.quranData.filter(v => v.surah === surahId);
+        }
+    }
+
+    /**
+     * Main analysis pipeline with VERIFICATION LOOP
+     * Tries multiple detection methods and verifies each with strict sequence matching
      */
     async analyzeFull(rawTranscript, metadata = {}) {
         const pipelineStart = Date.now();
@@ -858,62 +1007,150 @@ class RecitationAnalyzer {
                 };
             }
 
-            // Phase 1: Identify Surah
-            const surahDetection = await this.identifySurah(preprocessed.normalized);
+            console.log('\n═══════════════════════════════════════════════════════');
+            console.log('🔍 MULTI-PASS DETECTION WITH VERIFICATION');
+            console.log('═══════════════════════════════════════════════════════\n');
 
-            if (!surahDetection.success) {
-                return surahDetection;
-            }
+            let bestCandidate = null;
+            let bestVerification = null;
 
-            // Check if fast-path detected a famous passage
-            // If so, only align to those specific verses, not the entire surah
-            let alignments, verseRange, alignTime;
+            // ========== PASS 1: FAST-PATH ==========
+            console.log('📍 PASS 1: Fast-Path Detection');
+            const fastPathResult = this.detectFromFastPath(preprocessed.normalized);
 
-            if (surahDetection.primarySurah.detectionMethod === 'fast_path' &&
-                surahDetection.primarySurah.passageType === 'famous_passage') {
+            if (fastPathResult.detected) {
+                console.log(`   Candidate: ${fastPathResult.pattern.description}`);
 
-                // Fast-path detected a specific famous passage
-                // Only align to those specific verses
-                const result = await this.alignToSpecificVerses(
-                    preprocessed.normalized,
-                    surahDetection.primarySurah.id,
-                    surahDetection.primarySurah.startVerse,
-                    surahDetection.primarySurah.endVerse
+                // Get verses for verification (use ENTIRE recitation for verification)
+                const candidateVerses = this.getCandidateVerses(
+                    fastPathResult.pattern.surahId,
+                    fastPathResult.pattern.startVerse,
+                    fastPathResult.pattern.endVerse
                 );
 
-                alignments = result.alignments;
-                verseRange = result.verseRange;
-                alignTime = result.processingTime;
-
-            } else {
-                // Normal flow: align to all verses in the surah
-                const result = await this.alignToVerses(
+                // VERIFY using ENTIRE transcript
+                const verification = this.verifyPositionStrict(
                     preprocessed.normalized,
-                    surahDetection.primarySurah.id
+                    candidateVerses
                 );
 
-                alignments = result.alignments;
-                verseRange = result.verseRange;
-                alignTime = result.processingTime;
-            }
+                if (verification.verified) {
+                    console.log(`\n✅ PASS 1 ACCEPTED - Proceeding with fast-path result\n`);
 
-            // Phase 3: Detect skips
-            const skipDetection = this.detectSkips(alignments);
-
-            // Phase 4: Generate report
-            const totalProcessingTime = Date.now() - pipelineStart;
-            const report = this.generateReport(
-                surahDetection,
-                alignments,
-                skipDetection,
-                verseRange,
-                {
-                    ...metadata,
-                    totalProcessingTime
+                    // Position verified! Proceed to detailed analysis
+                    return await this.performDetailedAnalysis(
+                        preprocessed.normalized,
+                        fastPathResult.pattern.surahId,
+                        fastPathResult.pattern.startVerse,
+                        fastPathResult.pattern.endVerse,
+                        {
+                            ...metadata,
+                            detectionMethod: 'fast_path_verified',
+                            confidence: verification.confidence,
+                            verificationScores: verification.scores,
+                            pipelineStart
+                        }
+                    );
+                } else {
+                    console.log(`\n❌ PASS 1 REJECTED - ${verification.reason}\n`);
+                    bestCandidate = {
+                        method: 'fast_path',
+                        surah: fastPathResult.pattern.surahName,
+                        surahId: fastPathResult.pattern.surahId,
+                        verses: `${fastPathResult.pattern.startVerse}-${fastPathResult.pattern.endVerse}`
+                    };
+                    bestVerification = verification;
                 }
-            );
+            } else {
+                console.log(`   No fast-path candidate found\n`);
+            }
 
-            return report;
+            // ========== PASS 2: N-GRAM ==========
+            console.log('📍 PASS 2: N-Gram Detection');
+            const ngramResult = await this.identifySurah(preprocessed.normalized);
+
+            if (ngramResult.success && ngramResult.primarySurah) {
+                console.log(`   Candidate: ${ngramResult.primarySurah.name} (confidence: ${(ngramResult.primarySurah.confidence * 100).toFixed(1)}%)`);
+
+                // Get all verses from detected surah
+                const candidateVerses = this.getCandidateVerses(ngramResult.primarySurah.id);
+
+                // VERIFY using ENTIRE transcript
+                const verification = this.verifyPositionStrict(
+                    preprocessed.normalized,
+                    candidateVerses
+                );
+
+                if (verification.verified) {
+                    console.log(`\n✅ PASS 2 ACCEPTED - Proceeding with n-gram result\n`);
+
+                    // Position verified! Proceed to detailed analysis
+                    // Note: For n-gram, we detect verse range during alignment
+                    return await this.performDetailedAnalysis(
+                        preprocessed.normalized,
+                        ngramResult.primarySurah.id,
+                        null,  // Let alignToVerses detect range
+                        null,
+                        {
+                            ...metadata,
+                            detectionMethod: 'ngram_verified',
+                            confidence: verification.confidence,
+                            verificationScores: verification.scores,
+                            pipelineStart
+                        }
+                    );
+                } else {
+                    console.log(`\n❌ PASS 2 REJECTED - ${verification.reason}\n`);
+
+                    // Keep track of best candidate
+                    if (!bestVerification ||
+                        verification.scores.sequential > bestVerification.scores.sequential) {
+                        bestCandidate = {
+                            method: 'ngram',
+                            surah: ngramResult.primarySurah.name,
+                            surahId: ngramResult.primarySurah.id,
+                            verses: 'full_surah'
+                        };
+                        bestVerification = verification;
+                    }
+                }
+            } else {
+                console.log(`   No n-gram candidate found\n`);
+            }
+
+            // ========== ALL PASSES FAILED ==========
+            console.log('═══════════════════════════════════════════════════════');
+            console.log('❌ ALL PASSES FAILED VERIFICATION');
+            console.log('═══════════════════════════════════════════════════════\n');
+
+            // Return best guess with low confidence
+            return {
+                success: false,
+                confidence: 'low',
+                error: 'position_not_verified',
+                message: 'Could not confidently identify your recitation position',
+                bestGuess: bestCandidate || {
+                    method: 'none',
+                    surah: 'Unknown',
+                    verses: 'Unknown'
+                },
+                verificationScores: bestVerification?.scores || {
+                    sequential: 0,
+                    coverage: 0,
+                    countRatio: 0
+                },
+                transcript: rawTranscript.substring(0, 200) + '...',  // Show first 200 chars
+                suggestions: [
+                    'Try reciting from the beginning of a surah',
+                    'Speak more clearly and at a moderate pace',
+                    'Ensure good audio quality and minimal background noise',
+                    'Verify your microphone is working properly'
+                ],
+                userOptions: {
+                    manualInput: 'Provide surah and verse numbers manually',
+                    tryAgain: 'Record again with clearer pronunciation'
+                }
+            };
 
         } catch (error) {
             console.error('Analysis error:', error);
@@ -923,6 +1160,70 @@ class RecitationAnalyzer {
                 message: error.message
             };
         }
+    }
+
+    /**
+     * Perform detailed analysis after position is verified
+     */
+    async performDetailedAnalysis(preprocessedText, surahId, startVerse, endVerse, metadata) {
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('📊 DETAILED ANALYSIS (Position Verified)');
+        console.log('═══════════════════════════════════════════════════════\n');
+
+        let alignments, verseRange, alignTime;
+
+        if (startVerse && endVerse) {
+            // Specific verse range (from fast-path)
+            const result = await this.alignToSpecificVerses(
+                preprocessedText,
+                surahId,
+                startVerse,
+                endVerse
+            );
+            alignments = result.alignments;
+            verseRange = result.verseRange;
+            alignTime = result.processingTime;
+        } else {
+            // Full surah (from n-gram) - detect range during alignment
+            const result = await this.alignToVerses(preprocessedText, surahId);
+            alignments = result.alignments;
+            verseRange = result.verseRange;
+            alignTime = result.processingTime;
+        }
+
+        // Phase 3: Detect skips
+        const skipDetection = this.detectSkips(alignments);
+
+        // Phase 4: Generate report
+        const totalProcessingTime = Date.now() - metadata.pipelineStart;
+
+        const surahInfo = alignments[0];  // Get surah info from first alignment
+        const report = this.generateReport(
+            {
+                success: true,
+                primarySurah: {
+                    id: surahId,
+                    name: surahInfo ? this.quranService.quranData.find(v => v.surah === surahId)?.surahName : 'Unknown',
+                    detectionMethod: metadata.detectionMethod,
+                    confidence: metadata.confidence
+                }
+            },
+            alignments,
+            skipDetection,
+            verseRange,
+            {
+                ...metadata,
+                totalProcessingTime,
+                verificationScores: metadata.verificationScores
+            }
+        );
+
+        // Add confidence and verification scores to report
+        report.confidence = metadata.confidence;
+        report.verificationScores = metadata.verificationScores;
+        report.detectionMethod = metadata.detectionMethod;
+
+        return report;
     }
 }
 

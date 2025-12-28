@@ -293,4 +293,172 @@ router.get('/health', (req, res) => {
     });
 });
 
+/**
+ * POST /api/transcription/verify-manual
+ * Verify and analyze recitation when user provides surah and verse numbers manually
+ * Used when automatic detection fails and user needs to help identify position
+ */
+router.post('/verify-manual', async (req, res) => {
+    try {
+        const { transcript, surahId, startVerse, endVerse } = req.body;
+
+        // Validate inputs
+        if (!transcript || !surahId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields',
+                message: 'Please provide transcript and surahId'
+            });
+        }
+
+        // Validate surah ID (1-114)
+        const surahNum = parseInt(surahId);
+        if (isNaN(surahNum) || surahNum < 1 || surahNum > 114) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid surah number',
+                message: 'Surah number must be between 1 and 114'
+            });
+        }
+
+        // Validate verse numbers if provided
+        let start = startVerse ? parseInt(startVerse) : null;
+        let end = endVerse ? parseInt(endVerse) : null;
+
+        if (start && isNaN(start)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid start verse',
+                message: 'Start verse must be a valid number'
+            });
+        }
+
+        if (end && isNaN(end)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid end verse',
+                message: 'End verse must be a valid number'
+            });
+        }
+
+        if (start && end && start > end) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid verse range',
+                message: 'Start verse cannot be greater than end verse'
+            });
+        }
+
+        console.log('\n🔍 Manual position verification requested');
+        console.log(`   Surah: ${surahNum}, Verses: ${start || 'auto'}-${end || 'auto'}`);
+
+        // Get candidate verses
+        let candidateVerses;
+        if (start && end) {
+            candidateVerses = quranService.quranData.filter(v =>
+                v.surah === surahNum &&
+                v.ayah >= start &&
+                v.ayah <= end
+            );
+
+            if (candidateVerses.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid verse range',
+                    message: `Surah ${surahNum} does not have verses ${start}-${end}`
+                });
+            }
+        } else {
+            // If no verse range provided, get entire surah
+            candidateVerses = quranService.quranData.filter(v => v.surah === surahNum);
+
+            if (candidateVerses.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid surah',
+                    message: `Surah ${surahNum} not found`
+                });
+            }
+        }
+
+        const surahName = candidateVerses[0].surahName;
+        console.log(`   Verifying against: ${surahName} (${candidateVerses.length} verses)`);
+
+        // Preprocess transcript
+        const TextPreprocessor = require('../services/textPreprocessor');
+        const preprocessor = new TextPreprocessor();
+        const preprocessed = preprocessor.preprocess(transcript);
+
+        if (preprocessed.wordCount < 3) {
+            return res.status(400).json({
+                success: false,
+                error: 'Transcript too short',
+                message: 'Transcript must contain at least 3 words'
+            });
+        }
+
+        // Verify position using strict sequence matching
+        const verification = recitationAnalyzer.verifyPositionStrict(
+            preprocessed.normalized,
+            candidateVerses
+        );
+
+        if (verification.verified) {
+            console.log(`✅ Manual position VERIFIED (${verification.confidence})`);
+
+            // Position verified! Perform detailed analysis
+            const analysisResult = await recitationAnalyzer.performDetailedAnalysis(
+                preprocessed.normalized,
+                surahNum,
+                start,
+                end,
+                {
+                    detectionMethod: 'manual_verified',
+                    confidence: verification.confidence,
+                    verificationScores: verification.scores,
+                    pipelineStart: Date.now()
+                }
+            );
+
+            return res.json({
+                success: true,
+                verified: true,
+                message: `Position verified: ${surahName} verses ${start || 'auto'}-${end || 'auto'}`,
+                analysis: analysisResult
+            });
+
+        } else {
+            console.log(`❌ Manual position REJECTED - ${verification.reason}`);
+
+            // Position does not match
+            return res.status(400).json({
+                success: false,
+                verified: false,
+                error: 'position_mismatch',
+                message: `The recording does not match ${surahName} verses ${start || '1'}-${end || 'end'}`,
+                verificationScores: verification.scores,
+                details: {
+                    sequential: `${(verification.scores.sequential * 100).toFixed(1)}% of words matched in sequence`,
+                    coverage: `${(verification.scores.coverage * 100).toFixed(1)}% of verse words found in transcript`,
+                    countRatio: `Word count ratio: ${verification.scores.countRatio.toFixed(2)}`
+                },
+                suggestions: [
+                    'Verify you selected the correct surah and verses',
+                    'The audio quality may be too low',
+                    'Try recording again with clearer pronunciation',
+                    'Speak at a moderate pace, not too fast or too slow'
+                ]
+            });
+        }
+
+    } catch (error) {
+        console.error('Manual verification error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Verification failed',
+            message: error.message
+        });
+    }
+});
+
 module.exports = router;

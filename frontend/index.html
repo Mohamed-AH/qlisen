@@ -69,7 +69,11 @@
                     </button>
 
                     <!-- Hidden File Input -->
-                    <input type="file" id="fileInput" accept="audio/*" onchange="handleFileUpload(event)" class="hidden">
+                    <!-- Explicit MIME types for iOS compatibility -->
+                    <input type="file" id="fileInput"
+                           accept="audio/*,.ogg,.oga,.opus,.m4a,.mp3,.wav,.webm,.aac,.flac"
+                           onchange="handleFileUpload(event)"
+                           class="hidden">
                 </div>
 
                 <!-- Recording Status -->
