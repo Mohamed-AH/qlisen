@@ -11,11 +11,15 @@ const path = require('path');
 class WhisperService {
     constructor(apiKey) {
         this.useLocal = process.env.USE_LOCAL_WHISPER === 'true';
+        this.useRemote = process.env.USE_REMOTE_WHISPER === 'true';
         this.apiKey = apiKey || process.env.OPENAI_API_KEY;
         this.baseURL = 'https://api.openai.com/v1/audio/transcriptions';
+        this.remoteURL = process.env.WHISPER_URL; // Cloudflare tunnel URL
         this.modelName = process.env.WHISPER_MODEL || 'base'; // tiny, base, small, medium, large
 
-        if (this.useLocal) {
+        if (this.useRemote) {
+            console.log('🌐 Whisper configured for REMOTE mode (URL: ' + this.remoteURL + ')');
+        } else if (this.useLocal) {
             console.log('🏠 Whisper configured for LOCAL mode (model: ' + this.modelName + ')');
             this.nodeWhisper = null; // Lazy load when needed
         } else {
@@ -185,13 +189,123 @@ class WhisperService {
     }
 
     /**
-     * Transcribe Arabic audio (routes to local or API based on config)
+     * Transcribe using remote Whisper server (via Cloudflare tunnel)
+     * @param {string} audioFilePath - Path to audio file
+     * @returns {Promise<Object>} - Transcription result
+     */
+    async transcribeRemote(audioFilePath) {
+        try {
+            if (!this.remoteURL) {
+                throw new Error('WHISPER_URL not configured for remote mode');
+            }
+
+            if (!fs.existsSync(audioFilePath)) {
+                throw new Error(`Audio file not found: ${audioFilePath}`);
+            }
+
+            console.log('🌐 Transcribing via remote Whisper server...');
+            console.log(`   Remote URL: ${this.remoteURL}`);
+            console.log(`   File: ${path.basename(audioFilePath)}`);
+
+            // Step 1: Check if Whisper is online
+            try {
+                const healthCheck = await axios.get(this.remoteURL + '/', { timeout: 5000 });
+                console.log('✅ Remote Whisper is online');
+            } catch (error) {
+                console.error('❌ Remote Whisper is offline');
+                return {
+                    success: false,
+                    error: 'OFFLINE',
+                    shouldQueue: true,
+                    transcript: null
+                };
+            }
+
+            // Step 2: Check if busy (optional - server will handle)
+            // The Docker Whisper server processes one at a time
+
+            // Step 3: Send audio for transcription
+            const form = new FormData();
+            form.append('audio_file', fs.createReadStream(audioFilePath));
+            form.append('task', 'transcribe');
+            form.append('language', 'ar');
+            form.append('output', 'json');
+
+            console.log('📤 Sending audio to remote server...');
+            const startTime = Date.now();
+
+            const response = await axios.post(this.remoteURL + '/asr', form, {
+                headers: {
+                    ...form.getHeaders()
+                },
+                timeout: 120000, // 2 minute timeout (transcription can take time)
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            });
+
+            const processingTime = Date.now() - startTime;
+            console.log(`✅ Remote transcription completed in ${processingTime}ms`);
+
+            // Extract transcript from response
+            let transcript = '';
+            if (response.data && response.data.text) {
+                transcript = response.data.text;
+            } else if (typeof response.data === 'string') {
+                transcript = response.data;
+            } else {
+                throw new Error('Invalid response format from remote Whisper');
+            }
+
+            return {
+                success: true,
+                transcript: transcript.trim(),
+                processingTime,
+                method: 'remote',
+                remoteURL: this.remoteURL
+            };
+
+        } catch (error) {
+            console.error('❌ Remote Whisper error:', error.message);
+
+            // Check if it's a timeout or connection error (should queue)
+            if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' ||
+                error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+                return {
+                    success: false,
+                    error: 'TIMEOUT_OR_OFFLINE',
+                    shouldQueue: true,
+                    transcript: null
+                };
+            }
+
+            // Check if server returned 409 (busy) or 503 (unavailable)
+            if (error.response && (error.response.status === 409 || error.response.status === 503)) {
+                return {
+                    success: false,
+                    error: 'BUSY',
+                    shouldQueue: true,
+                    transcript: null
+                };
+            }
+
+            return {
+                success: false,
+                error: error.message,
+                transcript: null
+            };
+        }
+    }
+
+    /**
+     * Transcribe Arabic audio (routes to remote, local, or API based on config)
      * @param {string} audioFilePath - Path to audio file
      * @param {Object} options - Additional options
      * @returns {Promise<Object>} - Transcription result
      */
     async transcribeArabic(audioFilePath, options = {}) {
-        if (this.useLocal) {
+        if (this.useRemote) {
+            return await this.transcribeRemote(audioFilePath);
+        } else if (this.useLocal) {
             return await this.transcribeLocal(audioFilePath);
         } else {
             return await this.transcribeAPI(audioFilePath, options);
