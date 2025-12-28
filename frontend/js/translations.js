@@ -15,10 +15,13 @@ const TRANSLATIONS = {
         // Recording Section
         recordTitle: 'ابدأ التسجيل',
         recordInstructions: 'اضغط على زر الاستماع وابدأ التلاوة، ثم اضغط مرة أخرى للتوقف',
+        uploadInstructions: 'سجل صوتك باستخدام تطبيق التسجيل في هاتفك، ثم ارفع الملف هنا',
         recordText: 'استمع',
         recordIcon: '🎤',
         stopText: 'إيقاف',
         stopIcon: '⏹️',
+        uploadText: 'ارفع ملف',
+        orText: 'أو',
 
         // Recording Status
         recordingText: 'جاري التسجيل...',
@@ -88,10 +91,13 @@ const TRANSLATIONS = {
         // Recording Section
         recordTitle: 'Start Recording',
         recordInstructions: 'Press the Listen button and start reciting, then press again to stop',
+        uploadInstructions: 'Record your voice using your phone\'s recorder app, then upload the file here',
         recordText: 'Listen',
         recordIcon: '🎤',
         stopText: 'Stop',
         stopIcon: '⏹️',
+        uploadText: 'Upload File',
+        orText: 'OR',
 
         // Recording Status
         recordingText: 'Recording...',

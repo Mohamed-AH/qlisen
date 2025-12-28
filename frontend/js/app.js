@@ -10,18 +10,77 @@ const AppState = {
 };
 
 /**
+ * Device Detection
+ */
+function detectDevice() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+
+    return {
+        isIOS: /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream,
+        isAndroid: /android/i.test(userAgent),
+        isMobile: /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent),
+        isDesktop: !/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
+    };
+}
+
+/**
+ * Setup UI based on device capabilities
+ */
+function setupDeviceUI() {
+    const device = detectDevice();
+    const recordBtn = document.getElementById('recordBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const divider = document.getElementById('optionDivider');
+    const recordInstructions = document.getElementById('recordInstructions');
+    const uploadInstructions = document.getElementById('uploadInstructions');
+
+    // Check MediaRecorder support
+    const hasMediaRecorder = AudioRecorder.isSupported();
+
+    if (device.isIOS) {
+        // iOS: Prefer file upload (MediaRecorder unreliable)
+        recordBtn.classList.add('hidden');
+        uploadBtn.classList.remove('hidden');
+        divider.classList.add('hidden');
+        recordInstructions.classList.add('hidden');
+        uploadInstructions.classList.remove('hidden');
+        console.log('iOS detected: Showing upload only');
+
+    } else if (device.isAndroid) {
+        // Android: Show both options
+        if (hasMediaRecorder) {
+            recordBtn.classList.remove('hidden');
+            uploadBtn.classList.remove('hidden');
+            divider.classList.remove('hidden');
+            console.log('Android detected: Showing both options');
+        } else {
+            // Old Android without MediaRecorder
+            recordBtn.classList.add('hidden');
+            uploadBtn.classList.remove('hidden');
+            divider.classList.add('hidden');
+            recordInstructions.classList.add('hidden');
+            uploadInstructions.classList.remove('hidden');
+            console.log('Old Android detected: Showing upload only');
+        }
+
+    } else {
+        // Desktop: Show both options
+        recordBtn.classList.remove('hidden');
+        uploadBtn.classList.remove('hidden');
+        divider.classList.remove('hidden');
+        console.log('Desktop detected: Showing both options');
+    }
+}
+
+/**
  * Initialize application
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Check browser support
-    if (!AudioRecorder.isSupported()) {
-        alert(t('errorBrowserSupport'));
-        document.getElementById('recordBtn').disabled = true;
-        return;
-    }
-
     // Load translations
     updatePageTranslations();
+
+    // Setup UI based on device
+    setupDeviceUI();
 
     // Load saved email
     const savedEmail = localStorage.getItem(CONFIG.STORAGE_KEYS.userEmail);
@@ -202,6 +261,56 @@ function promptForEmail() {
 
 // Prompt for email on first use
 setTimeout(promptForEmail, 2000);
+
+/**
+ * Trigger file input dialog
+ */
+function triggerFileUpload() {
+    if (AppState.isProcessing) {
+        return; // Ignore clicks while processing
+    }
+
+    const fileInput = document.getElementById('fileInput');
+    fileInput.click();
+}
+
+/**
+ * Handle file upload
+ */
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+
+    if (!file) {
+        return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('audio/')) {
+        UI.showError(t('errorFileType') || 'Please select an audio file');
+        return;
+    }
+
+    // Validate file size (max 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+        UI.showError(t('errorFileSize') || 'File size must be less than 50MB');
+        return;
+    }
+
+    console.log('File selected:', file.name, file.type, file.size, 'bytes');
+
+    // Update state
+    AppState.isProcessing = true;
+
+    // Show processing status
+    UI.showProcessingStatus(t('transcribingText'));
+
+    // Process the file
+    await processRecording(file);
+
+    // Clear file input for next upload
+    event.target.value = '';
+}
 
 /**
  * Keyboard shortcuts
