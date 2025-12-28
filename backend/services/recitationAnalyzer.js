@@ -387,22 +387,82 @@ class RecitationAnalyzer {
      * Find the best continuous range from significant verses
      */
     findBestRange(significantVerses) {
-        // Use min-max approach: include all verses from first to last match
-        // Skip detection phase will identify which verses in between were actually skipped
         if (significantVerses.length === 0) {
             return { startVerse: 1, endVerse: 1, versesInRange: 1 };
         }
 
-        // Extract verse numbers and find min/max
+        // Extract verse numbers
         const verseNumbers = significantVerses.map(v => v.ayah);
-        const startVerse = Math.min(...verseNumbers);
-        const endVerse = Math.max(...verseNumbers);
+        const minVerse = Math.min(...verseNumbers);
+        const maxVerse = Math.max(...verseNumbers);
+        const rangeSize = maxVerse - minVerse + 1;
 
-        return {
-            startVerse,
-            endVerse,
-            versesInRange: endVerse - startVerse + 1
-        };
+        // Calculate density: how many significant verses vs total range
+        const density = significantVerses.length / rangeSize;
+
+        // If density is high (>40%), use min-max approach (handles intentional skips)
+        // If density is low (<=40%), use continuous range building (handles scattered errors)
+        if (density > 0.40) {
+            // Dense matches - likely a continuous recitation with some skipped verses
+            return {
+                startVerse: minVerse,
+                endVerse: maxVerse,
+                versesInRange: rangeSize
+            };
+        } else {
+            // Sparse matches - likely scattered errors, use continuous range building
+            let bestRange = {
+                start: significantVerses[0].ayah,
+                end: significantVerses[0].ayah,
+                count: 1,
+                avgAccuracy: significantVerses[0].accuracy
+            };
+
+            let currentRange = {
+                start: significantVerses[0].ayah,
+                end: significantVerses[0].ayah,
+                count: 1,
+                totalAccuracy: significantVerses[0].accuracy
+            };
+
+            for (let i = 1; i < significantVerses.length; i++) {
+                const verse = significantVerses[i];
+                const prevVerse = significantVerses[i - 1];
+
+                // If within 3 verses of previous, extend current range
+                if (verse.ayah - prevVerse.ayah <= 3) {
+                    currentRange.end = verse.ayah;
+                    currentRange.count = currentRange.end - currentRange.start + 1;
+                    currentRange.totalAccuracy += verse.accuracy;
+                    const avgAccuracy = currentRange.totalAccuracy / currentRange.count;
+
+                    // Update best if this range has more verses OR similar count but better accuracy
+                    if (currentRange.count > bestRange.count ||
+                        (currentRange.count === bestRange.count && avgAccuracy > bestRange.avgAccuracy)) {
+                        bestRange = {
+                            start: currentRange.start,
+                            end: currentRange.end,
+                            count: currentRange.count,
+                            avgAccuracy
+                        };
+                    }
+                } else {
+                    // Gap too large, start new range
+                    currentRange = {
+                        start: verse.ayah,
+                        end: verse.ayah,
+                        count: 1,
+                        totalAccuracy: verse.accuracy
+                    };
+                }
+            }
+
+            return {
+                startVerse: bestRange.start,
+                endVerse: bestRange.end,
+                versesInRange: bestRange.count
+            };
+        }
     }
 
     /**
