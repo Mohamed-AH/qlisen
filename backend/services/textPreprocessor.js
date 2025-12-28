@@ -54,24 +54,19 @@ class TextPreprocessor {
         ]);
 
         // Common ritual phrases said before/after Quran recitation
-        // These are NOT part of the Quran text and should be removed
+        // IMPORTANT: Only include phrases that are NOT in the Quran text
+        // "بسم الله الرحمن الرحيم" appears in Al-Fatiha and An-Naml, so we don't remove it
+        // "استعيذ بالله من الشيطان الرجيم" appears in Quran, so we don't remove it
         this.ritualPhrases = {
-            // Opening phrases (before recitation)
+            // Opening phrases (before recitation) - SAFE to remove
             opening: [
-                'اعوذ بالله من الشيطان الرجيم',
+                'اعوذ بالله من الشيطان الرجيم',  // NOT in Quran (uses أعوذ, not استعيذ)
                 'اعوذ بالله من الشيطان',
-                'استعيذ بالله من الشيطان الرجيم',
-                'بسم الله الرحمن الرحيم', // Only at beginning (could be ritual or Al-Fatiha)
-                'بسم الله',
             ],
-            // Closing phrases (after recitation)
+            // Closing phrases (after recitation) - SAFE to remove
             closing: [
-                'صدق الله العظيم',
+                'صدق الله العظيم',   // NOT in Quran
                 'صدق الله',
-                'والله اعلم',
-                'سبحان ربك رب العزه عما يصفون',
-                'وسلام علي المرسلين',
-                'والحمد لله رب العالمين'
             ]
         };
     }
