@@ -376,6 +376,16 @@ class RecitationAnalyzer {
             const verseWords = verse.textNormalized.split(/\s+/);
             const alignment = this.alignWords(transcriptWords, verseWords);
 
+            // Base accuracy from word matches
+            const baseAccuracy = alignment.matched / verseWords.length;
+
+            // Length bonus: Longer verses get a boost to prefer unique sequences
+            // over short verses with common words. Max 15% boost for 50+ word verses.
+            const lengthBonus = Math.min(verseWords.length / 50, 1.0) * 0.15;
+
+            // Final accuracy (capped at 1.0)
+            const accuracy = Math.min(baseAccuracy + lengthBonus, 1.0);
+
             alignments.push({
                 verseId: verse.id,
                 ayah: verse.ayah,
@@ -385,7 +395,9 @@ class RecitationAnalyzer {
                 wordsMatched: alignment.matched,
                 wordsMissing: alignment.missing,
                 wordsFuzzy: alignment.fuzzy,
-                accuracy: alignment.matched / verseWords.length,
+                accuracy,
+                baseAccuracy, // Keep for debugging
+                lengthBonus, // Keep for debugging
                 alignment: alignment.details
             });
         }
