@@ -134,9 +134,9 @@ class RecitationAnalyzer {
             console.log(`   ${i + 1}. ${topMatches[i].pattern}: ${(topMatches[i].similarity * 100).toFixed(1)}%`);
         }
 
-        // Return if strong match found (60% threshold)
-        // Lowered to handle speech recognition errors
-        if (bestSimilarity >= 0.60) {
+        // Return if strong match found (55% threshold)
+        // Lowered to handle speech recognition errors like "وسيأكل" instead of "وسع كرسيه"
+        if (bestSimilarity >= 0.55) {
             return {
                 detected: true,
                 pattern: bestMatch,
@@ -145,7 +145,7 @@ class RecitationAnalyzer {
             };
         }
 
-        console.log(`   ❌ Best match ${(bestSimilarity * 100).toFixed(1)}% below 60% threshold`);
+        console.log(`   ❌ Best match ${(bestSimilarity * 100).toFixed(1)}% below 55% threshold`);
         return { detected: false };
     }
 
