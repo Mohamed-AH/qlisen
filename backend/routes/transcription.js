@@ -33,29 +33,25 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
             });
         }
 
-        // Get user email from request body
-        const userEmail = req.body.email;
-        if (!userEmail) {
-            return res.status(400).json({
-                success: false,
-                error: 'Email address is required'
-            });
-        }
+        // Get user email from request body (optional)
+        const userEmail = req.body.email || '';
 
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(userEmail)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid email address'
-            });
+        // Validate email format if provided
+        if (userEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(userEmail)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid email address'
+                });
+            }
         }
 
         audioFilePath = req.file.path;
         console.log('📥 Received audio file:', req.file.filename);
         console.log('   Size:', (req.file.size / 1024).toFixed(2), 'KB');
         console.log('   Type:', req.file.mimetype);
-        console.log('   Email:', userEmail);
+        console.log('   Email:', userEmail || '(not provided)');
 
         // Step 1: Try to transcribe immediately
         console.log('\n🎯 Step 1: Attempting transcription...');
@@ -116,9 +112,13 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
         console.log('   Surah:', analysisResult.summary.primarySurah.name);
         console.log('   Verses:', `${analysisResult.summary.verseRange.start}-${analysisResult.summary.verseRange.end}`);
 
-        // Step 3: Send email (async, don't wait)
-        emailService.sendResultEmail(userEmail, analysisResult, 'immediate-' + Date.now())
-            .catch(err => console.error('Email send error:', err));
+        // Step 3: Send email (async, don't wait) - only if email provided
+        if (userEmail) {
+            emailService.sendResultEmail(userEmail, analysisResult, 'immediate-' + Date.now())
+                .catch(err => console.error('Email send error:', err));
+        } else {
+            console.log('⏭️  Skipping email (no email provided)');
+        }
 
         // Return immediate result
         res.json({
