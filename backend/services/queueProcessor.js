@@ -120,7 +120,7 @@ class QueueProcessor {
 
             // Step 2: Analyze recitation
             console.log('🎯 Step 2: Analyzing recitation...');
-            const analysisResult = await this.recitationAnalyzer.analyzeRecitation(transcript);
+            const analysisResult = await this.recitationAnalyzer.analyzeFull(transcript);
 
             if (!analysisResult.success) {
                 throw new Error(analysisResult.error || 'Analysis failed');
