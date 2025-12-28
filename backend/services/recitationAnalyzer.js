@@ -124,8 +124,9 @@ class RecitationAnalyzer {
             }
         }
 
-        // Return if strong match found (75% threshold)
-        if (bestSimilarity >= 0.75) {
+        // Return if strong match found (65% threshold)
+        // Lower threshold to handle speech recognition errors
+        if (bestSimilarity >= 0.65) {
             return {
                 detected: true,
                 pattern: bestMatch,
@@ -157,7 +158,9 @@ class RecitationAnalyzer {
                     confidence: fastPathResult.similarity,
                     detectionMethod: 'fast_path',
                     passageType: fastPathResult.pattern.type,
-                    description: fastPathResult.pattern.description
+                    description: fastPathResult.pattern.description,
+                    startVerse: fastPathResult.pattern.startVerse,
+                    endVerse: fastPathResult.pattern.endVerse
                 },
                 additionalSurahs: [],
                 ambiguous: false,
@@ -296,6 +299,52 @@ class RecitationAnalyzer {
                 ngrams3Count: ngrams3.length,
                 ngrams4Count: ngrams4.length
             }
+        };
+    }
+
+    /**
+     * Align transcript to specific verses (used for fast-path famous passages)
+     */
+    async alignToSpecificVerses(preprocessedText, surahId, startVerse, endVerse) {
+        const startTime = Date.now();
+
+        // Get only the specific verses in the range
+        const allSurahVerses = this.quranService.quranData.filter(v =>
+            v.surah === surahId &&
+            v.ayah >= startVerse &&
+            v.ayah <= endVerse
+        );
+
+        const alignments = [];
+        const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+
+        // Align each verse in the range
+        for (const verse of allSurahVerses) {
+            const verseWords = verse.textNormalized.split(/\s+/);
+            const alignment = this.alignWords(transcriptWords, verseWords);
+
+            alignments.push({
+                ayah: verse.ayah,
+                accuracy: alignment.accuracy,
+                wordsMatched: alignment.matched + alignment.fuzzy,
+                wordCount: verseWords.length,
+                alignment: alignment.details
+            });
+        }
+
+        // For famous passages, verse range is exactly what was detected
+        const verseRange = {
+            startVerse,
+            endVerse,
+            versesInRange: endVerse - startVerse + 1
+        };
+
+        const processingTime = Date.now() - startTime;
+
+        return {
+            alignments,
+            verseRange,
+            processingTime
         };
     }
 
@@ -672,11 +721,37 @@ class RecitationAnalyzer {
                 return surahDetection;
             }
 
-            // Phase 2: Align to verses
-            const { alignments, verseRange, processingTime: alignTime } = await this.alignToVerses(
-                preprocessed.normalized,
-                surahDetection.primarySurah.id
-            );
+            // Check if fast-path detected a famous passage
+            // If so, only align to those specific verses, not the entire surah
+            let alignments, verseRange, alignTime;
+
+            if (surahDetection.primarySurah.detectionMethod === 'fast_path' &&
+                surahDetection.primarySurah.passageType === 'famous_passage') {
+
+                // Fast-path detected a specific famous passage
+                // Only align to those specific verses
+                const result = await this.alignToSpecificVerses(
+                    preprocessed.normalized,
+                    surahDetection.primarySurah.id,
+                    surahDetection.primarySurah.startVerse,
+                    surahDetection.primarySurah.endVerse
+                );
+
+                alignments = result.alignments;
+                verseRange = result.verseRange;
+                alignTime = result.processingTime;
+
+            } else {
+                // Normal flow: align to all verses in the surah
+                const result = await this.alignToVerses(
+                    preprocessed.normalized,
+                    surahDetection.primarySurah.id
+                );
+
+                alignments = result.alignments;
+                verseRange = result.verseRange;
+                alignTime = result.processingTime;
+            }
 
             // Phase 3: Detect skips
             const skipDetection = this.detectSkips(alignments);
