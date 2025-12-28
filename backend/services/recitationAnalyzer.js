@@ -163,6 +163,73 @@ class RecitationAnalyzer {
         // Return if strong match found (55% threshold)
         // Lowered to handle speech recognition errors like "وسيأكل" instead of "وسع كرسيه"
         if (bestSimilarity >= 0.55) {
+            // 🔍 Special handling for Al-Fatiha verse 1 (Bismillah)
+            // Many people say Bismillah before reciting any surah, but Bismillah is only
+            // verse 1 of Al-Fatiha. We need to verify this is actually Al-Fatiha.
+            if (bestMatch.surahId === 1 && bestMatch.startVerse === 1 && bestMatch.endVerse === 1) {
+                console.log('⚠️  Bismillah detected - verifying it\'s actually Al-Fatiha...');
+
+                // Get Al-Fatiha verse 2 text to verify
+                const fatihaVerse2 = this.quranService.quranData.find(v => v.surah === 1 && v.ayah === 2);
+                if (fatihaVerse2) {
+                    // Check if the words AFTER Bismillah match Al-Fatiha verse 2
+                    const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+                    const bismillahWords = bestMatch.text.split(/\s+/).filter(w => w.length > 0);
+
+                    // Get next 5-7 words after Bismillah
+                    const nextWords = transcriptWords.slice(bismillahWords.length, bismillahWords.length + 7).join(' ');
+                    const verse2Words = fatihaVerse2.textNormalized.split(/\s+/).filter(w => w.length > 0).slice(0, 7).join(' ');
+
+                    // Calculate similarity of the next words
+                    const nextSimilarity = levenshteinSimilarity(nextWords, verse2Words);
+
+                    console.log(`   Next words similarity with Fatiha verse 2: ${(nextSimilarity * 100).toFixed(1)}%`);
+
+                    // If next words DON'T match Al-Fatiha verse 2, this is probably Bismillah + another surah
+                    if (nextSimilarity < 0.50) {
+                        console.log('   ❌ Next words don\'t match Al-Fatiha - stripping Bismillah and re-matching');
+
+                        // Strip Bismillah and try matching again
+                        const withoutBismillah = transcriptWords.slice(bismillahWords.length).join(' ');
+
+                        // Re-run matching without Bismillah
+                        let secondBestMatch = null;
+                        let secondBestSimilarity = 0;
+
+                        for (const pattern of this.fastPathIndex) {
+                            // Skip Al-Fatiha verse 1 to avoid matching Bismillah again
+                            if (pattern.surahId === 1 && pattern.startVerse === 1 && pattern.endVerse === 1) {
+                                continue;
+                            }
+
+                            const patternWords = pattern.text.split(/\s+/).filter(w => w.length > 0);
+                            const patternWordCount = patternWords.length;
+                            const transcriptSlice = withoutBismillah.split(/\s+/).filter(w => w.length > 0).slice(0, patternWordCount).join(' ');
+
+                            const similarity = levenshteinSimilarity(transcriptSlice, pattern.text);
+
+                            if (similarity > secondBestSimilarity) {
+                                secondBestSimilarity = similarity;
+                                secondBestMatch = pattern;
+                            }
+                        }
+
+                        if (secondBestSimilarity >= 0.55) {
+                            console.log(`   ✅ Found better match without Bismillah: ${secondBestMatch.description} (${(secondBestSimilarity * 100).toFixed(1)}%)`);
+                            return {
+                                detected: true,
+                                pattern: secondBestMatch,
+                                similarity: secondBestSimilarity,
+                                method: 'fast_path',
+                                bismillahStripped: true
+                            };
+                        }
+                    } else {
+                        console.log('   ✅ Next words match Al-Fatiha verse 2 - this is Al-Fatiha');
+                    }
+                }
+            }
+
             return {
                 detected: true,
                 pattern: bestMatch,
