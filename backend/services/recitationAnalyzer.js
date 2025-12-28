@@ -315,18 +315,30 @@ class RecitationAnalyzer {
         }
 
         // Combine scores with weighted voting
+        // IMPORTANT: Normalize by surah length to prevent long surahs (Al-Baqarah) from dominating
         const finalScores = new Map();
         const weights = { '2gram': 0.5, '3gram': 1.0, '4gram': 1.5 };
         const totalWeight = 3.0;
 
         for (const [surahId, score] of surahScores['2gram']) {
+            // Get surah length (number of verses)
+            const surahVerses = this.quranService.quranData.filter(v => v.surah === surahId);
+            const surahLength = surahVerses.length;
+
+            // Normalize by ngram count AND surah length
             const score2 = score / Math.max(ngrams2.length, 1);
             const score3 = (surahScores['3gram'].get(surahId) || 0) / Math.max(ngrams3.length, 1);
             const score4 = (surahScores['4gram'].get(surahId) || 0) / Math.max(ngrams4.length, 1);
 
-            const finalScore = (score2 * weights['2gram'] +
-                              score3 * weights['3gram'] +
-                              score4 * weights['4gram']) / totalWeight;
+            // Calculate weighted average
+            const rawScore = (score2 * weights['2gram'] +
+                            score3 * weights['3gram'] +
+                            score4 * weights['4gram']) / totalWeight;
+
+            // Normalize by surah length (longer surahs get penalized)
+            // Use square root to soften the penalty (so it's not too harsh on medium surahs)
+            const lengthNormalizationFactor = Math.sqrt(surahLength / 10); // Divide by 10 for scaling
+            const finalScore = rawScore / lengthNormalizationFactor;
 
             finalScores.set(surahId, finalScore);
         }
@@ -345,7 +357,7 @@ class RecitationAnalyzer {
         const secondScore = sorted.length > 1 ? sorted[1][1] : 0;
 
         // Log top 10 candidates for debugging
-        console.log('📊 N-gram top 10 candidates:');
+        console.log('📊 N-gram top 10 candidates (with length normalization):');
         for (let i = 0; i < Math.min(10, sorted.length); i++) {
             const [surahId, score] = sorted[i];
             const verse = this.quranService.quranData.find(v => v.surah === surahId);
