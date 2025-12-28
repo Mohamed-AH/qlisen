@@ -112,9 +112,9 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
         }
 
         console.log('✅ Analysis completed');
-        console.log('   Method:', analysisResult.method);
-        console.log('   Surah:', analysisResult.surah);
-        console.log('   Verses:', `${analysisResult.startVerse}-${analysisResult.endVerse}`);
+        console.log('   Method:', analysisResult.summary.primarySurah.detectionMethod);
+        console.log('   Surah:', analysisResult.summary.primarySurah.name);
+        console.log('   Verses:', `${analysisResult.summary.verseRange.start}-${analysisResult.summary.verseRange.end}`);
 
         // Step 3: Send email (async, don't wait)
         emailService.sendResultEmail(userEmail, analysisResult, 'immediate-' + Date.now())
@@ -127,18 +127,20 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
             transcript: transcript,
             transcriptionTime: transcriptionResult.processingTime,
             analysis: {
-                surah: analysisResult.surah,
-                surahId: analysisResult.surahId,
-                surahNameArabic: analysisResult.surahNameArabic,
-                startVerse: analysisResult.startVerse,
-                endVerse: analysisResult.endVerse,
-                verseCount: analysisResult.verseCount,
-                method: analysisResult.method,
-                accuracy: analysisResult.accuracy,
-                alignments: analysisResult.alignments
+                surah: analysisResult.summary.primarySurah.name,
+                surahId: analysisResult.summary.primarySurah.id,
+                surahNameArabic: analysisResult.summary.primarySurah.nameArabic,
+                startVerse: analysisResult.summary.verseRange.start,
+                endVerse: analysisResult.summary.verseRange.end,
+                verseCount: analysisResult.summary.verseRange.count,
+                method: analysisResult.summary.primarySurah.detectionMethod,
+                accuracy: analysisResult.summary.overallAccuracy,
+                verses: analysisResult.verses,
+                mistakes: analysisResult.mistakes,
+                recommendations: analysisResult.recommendations
             },
             metadata: transcriptionResult.metadata,
-            totalProcessingTime: transcriptionResult.processingTime + analysisResult.processingTime,
+            totalProcessingTime: transcriptionResult.processingTime + (analysisResult.summary.processingTime || 0),
             message: 'Analysis complete! Check your email for detailed results.'
         });
 
