@@ -98,6 +98,26 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
         console.log('\n🎯 Step 2: Analyzing Quran position...');
         const analysisResult = await recitationAnalyzer.analyzeFull(transcript);
 
+        // Handle low confidence (position not verified) - this is NOT an error, it's a valid response
+        if (!analysisResult.success && analysisResult.error === 'position_not_verified') {
+            console.log('⚠️  Low confidence - position could not be verified');
+            console.log('   Best guess:', analysisResult.bestGuess?.surah || 'Unknown');
+
+            // Return 200 (not 500) with suggestions for manual input
+            return res.json({
+                success: false,
+                confidence: analysisResult.confidence,
+                error: analysisResult.error,
+                message: analysisResult.message,
+                bestGuess: analysisResult.bestGuess,
+                verificationScores: analysisResult.verificationScores,
+                transcript,
+                suggestions: analysisResult.suggestions,
+                userOptions: analysisResult.userOptions
+            });
+        }
+
+        // Handle actual analysis errors (not low confidence)
         if (!analysisResult.success) {
             return res.status(500).json({
                 success: false,

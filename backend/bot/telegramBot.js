@@ -281,6 +281,36 @@ class QlisenTelegramBot {
      * Format and send results to user
      */
     async sendResults(chatId, result) {
+        // Handle low confidence (position not verified)
+        if (!result.success && result.error === 'position_not_verified') {
+            let message = `⚠️ *لم نتمكن من تحديد موضع التلاوة بثقة*\n\n`;
+
+            if (result.bestGuess && result.bestGuess.surah !== 'Unknown') {
+                message += `🤔 *أفضل تخمين:*\n`;
+                message += `السورة: ${result.bestGuess.surah}\n`;
+                message += `الآيات: ${result.bestGuess.verses}\n\n`;
+                message += `📊 *نتائج التحقق:*\n`;
+                message += `• تتابع الكلمات: ${(result.verificationScores.sequential * 100).toFixed(1)}%\n`;
+                message += `• تغطية الكلمات: ${(result.verificationScores.coverage * 100).toFixed(1)}%\n\n`;
+            }
+
+            message += `💡 *اقتراحات:*\n`;
+            if (result.suggestions && result.suggestions.length > 0) {
+                result.suggestions.forEach(suggestion => {
+                    message += `• ${suggestion}\n`;
+                });
+            }
+
+            message += `\n📝 يمكنك:\n`;
+            message += `• إعادة التسجيل بصوت أوضح\n`;
+            message += `• التلاوة من بداية السورة\n`;
+            message += `• التأكد من جودة الصوت`;
+
+            await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+            return;
+        }
+
+        // Handle actual errors
         if (!result.success) {
             await this.bot.sendMessage(
                 chatId,

@@ -250,6 +250,131 @@ class RecitationAnalyzer {
     }
 
     /**
+     * N-Gram only detection (skips fast-path)
+     * Used in PASS 2 of multi-pass verification to avoid re-running fast-path
+     */
+    async identifySurahNgramOnly(preprocessedText) {
+        const startTime = Date.now();
+
+        console.log('🔬 Running n-gram analysis (skipping fast-path)');
+
+        // Extract n-grams
+        const { '2grams': ngrams2, '3grams': ngrams3, '4grams': ngrams4 } =
+            this.preprocessor.extractAllNgrams(preprocessedText);
+
+        // Track scores per surah for each strategy
+        const surahScores = {
+            '2gram': new Map(),
+            '3gram': new Map(),
+            '4gram': new Map()
+        };
+
+        // Strategy 1: Fuzzy 2-grams (most tolerant)
+        for (const ngram of ngrams2) {
+            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.65);
+            for (const match of matches) {
+                for (const verseInfo of match.verses) {
+                    const verse = this.quranService.quranData[verseInfo.verseId];
+                    if (!verse) continue;
+
+                    const surahId = verse.surah;
+                    const current = surahScores['2gram'].get(surahId) || 0;
+                    surahScores['2gram'].set(surahId, current + match.similarity);
+                }
+            }
+        }
+
+        // Strategy 2: Fuzzy 3-grams (balanced)
+        for (const ngram of ngrams3) {
+            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.70);
+            for (const match of matches) {
+                for (const verseInfo of match.verses) {
+                    const verse = this.quranService.quranData[verseInfo.verseId];
+                    if (!verse) continue;
+
+                    const surahId = verse.surah;
+                    const current = surahScores['3gram'].get(surahId) || 0;
+                    surahScores['3gram'].set(surahId, current + match.similarity);
+                }
+            }
+        }
+
+        // Strategy 3: Fuzzy 4-grams (most precise)
+        for (const ngram of ngrams4) {
+            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.75);
+            for (const match of matches) {
+                for (const verseInfo of match.verses) {
+                    const verse = this.quranService.quranData[verseInfo.verseId];
+                    if (!verse) continue;
+
+                    const surahId = verse.surah;
+                    const current = surahScores['4gram'].get(surahId) || 0;
+                    surahScores['4gram'].set(surahId, current + match.similarity);
+                }
+            }
+        }
+
+        // Combine scores with weighted voting
+        const finalScores = new Map();
+        const weights = { '2gram': 0.5, '3gram': 1.0, '4gram': 1.5 };
+        const totalWeight = 3.0;
+
+        for (const [surahId, score] of surahScores['2gram']) {
+            const score2 = score / Math.max(ngrams2.length, 1);
+            const score3 = (surahScores['3gram'].get(surahId) || 0) / Math.max(ngrams3.length, 1);
+            const score4 = (surahScores['4gram'].get(surahId) || 0) / Math.max(ngrams4.length, 1);
+
+            const finalScore = (score2 * weights['2gram'] +
+                              score3 * weights['3gram'] +
+                              score4 * weights['4gram']) / totalWeight;
+
+            finalScores.set(surahId, finalScore);
+        }
+
+        if (finalScores.size === 0) {
+            return {
+                success: false,
+                error: 'No matching surahs found',
+                message: 'Could not identify any surah from the transcript'
+            };
+        }
+
+        // Sort by score and get top matches
+        const sorted = Array.from(finalScores.entries()).sort((a, b) => b[1] - a[1]);
+        const topScore = sorted[0][1];
+        const secondScore = sorted.length > 1 ? sorted[1][1] : 0;
+
+        // Check if result is ambiguous (top 2 scores are very close)
+        const ambiguous = sorted.length > 1 && (topScore - secondScore) < 0.05;
+
+        if (ambiguous) {
+            console.log(`⚠️ N-gram result ambiguous: Top 2 scores very close`);
+            console.log(`   1. ${sorted[0][0]}: ${(sorted[0][1] * 100).toFixed(1)}%`);
+            console.log(`   2. ${sorted[1][0]}: ${(sorted[1][1] * 100).toFixed(1)}%`);
+        }
+
+        // Get surah info
+        const primarySurahId = sorted[0][0];
+        const primaryVerse = this.quranService.quranData.find(v => v.surah === primarySurahId);
+
+        const processingTime = Date.now() - startTime;
+        console.log(`📊 N-gram result: ${primaryVerse.surahName} (${(topScore * 100).toFixed(1)}% confidence, ${processingTime}ms)`);
+
+        return {
+            success: true,
+            primarySurah: {
+                id: primarySurahId,
+                name: primaryVerse.surahName,
+                nameEn: primaryVerse.surahNameEn,
+                confidence: topScore,
+                detectionMethod: 'ngram'
+            },
+            ambiguous,
+            processingTime
+        };
+    }
+
+    /**
      * Phase 1: Identify which surah(s) were recited
      */
     async identifySurah(preprocessedText) {
@@ -1067,7 +1192,7 @@ class RecitationAnalyzer {
 
             // ========== PASS 2: N-GRAM ==========
             console.log('📍 PASS 2: N-Gram Detection');
-            const ngramResult = await this.identifySurah(preprocessed.normalized);
+            const ngramResult = await this.identifySurahNgramOnly(preprocessed.normalized);
 
             if (ngramResult.success && ngramResult.primarySurah) {
                 console.log(`   Candidate: ${ngramResult.primarySurah.name} (confidence: ${(ngramResult.primarySurah.confidence * 100).toFixed(1)}%)`);
