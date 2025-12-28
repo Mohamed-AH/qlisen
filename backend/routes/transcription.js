@@ -100,7 +100,7 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
 
         // Step 2: Analyze Quran position
         console.log('\n🎯 Step 2: Analyzing Quran position...');
-        const analysisResult = await recitationAnalyzer.analyzeRecitation(transcript);
+        const analysisResult = await recitationAnalyzer.analyzeFull(transcript);
 
         if (!analysisResult.success) {
             return res.status(500).json({
