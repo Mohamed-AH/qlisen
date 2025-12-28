@@ -526,60 +526,119 @@ class RecitationAnalyzer {
     }
 
     /**
-     * Simple word-by-word alignment
+     * Improved alignment using sliding window + sequence matching
+     * Finds best matching segment in transcript for this verse
      */
     alignWords(transcriptWords, verseWords) {
+        // Handle edge cases
+        if (verseWords.length === 0) {
+            return { matched: 0, fuzzy: 0, missing: 0, accuracy: 0, details: [] };
+        }
+
+        if (transcriptWords.length === 0) {
+            return {
+                matched: 0,
+                fuzzy: 0,
+                missing: verseWords.length,
+                accuracy: 0,
+                details: verseWords.map((word, i) => ({
+                    index: i,
+                    expected: word,
+                    heard: null,
+                    similarity: 0,
+                    matched: false,
+                    missing: true
+                }))
+            };
+        }
+
+        // Use sliding window to find best matching segment
+        const windowSize = verseWords.length;
+        let bestWindowScore = 0;
+        let bestWindowStart = 0;
+
+        // Try all possible windows
+        for (let start = 0; start <= transcriptWords.length - windowSize; start++) {
+            const window = transcriptWords.slice(start, start + windowSize);
+            let windowScore = 0;
+
+            // Calculate similarity for this window
+            for (let i = 0; i < verseWords.length; i++) {
+                const similarity = levenshteinSimilarity(verseWords[i], window[i]);
+                windowScore += similarity;
+            }
+
+            if (windowScore > bestWindowScore) {
+                bestWindowScore = windowScore;
+                bestWindowStart = start;
+            }
+        }
+
+        // If transcript is shorter than verse, compare what we have
+        if (transcriptWords.length < windowSize) {
+            let score = 0;
+            for (let i = 0; i < Math.min(transcriptWords.length, verseWords.length); i++) {
+                score += levenshteinSimilarity(verseWords[i], transcriptWords[i]);
+            }
+            bestWindowScore = score;
+            bestWindowStart = 0;
+        }
+
+        // Now align using best window
+        const bestWindow = transcriptWords.slice(bestWindowStart, bestWindowStart + windowSize);
         let matched = 0;
         let fuzzy = 0;
         let missing = 0;
         const details = [];
 
-        // Simple approach: try to find each verse word in transcript
         for (let i = 0; i < verseWords.length; i++) {
             const expected = verseWords[i];
-            let found = false;
-            let bestMatch = null;
-            let bestSimilarity = 0;
+            const heard = bestWindow[i] || null;
 
-            // Look for exact or fuzzy match in transcript
-            for (let j = 0; j < transcriptWords.length; j++) {
-                const heard = transcriptWords[j];
+            if (!heard) {
+                // Word missing from transcript
+                missing++;
+                details.push({
+                    index: i,
+                    expected,
+                    heard: null,
+                    similarity: 0,
+                    matched: false,
+                    missing: true
+                });
+            } else {
                 const similarity = levenshteinSimilarity(expected, heard);
 
                 if (similarity === 1.0) {
                     // Exact match
-                    found = true;
                     matched++;
-                    details.push({ index: i, expected, heard, similarity, matched: true });
-                    break;
-                } else if (similarity >= 0.75 && similarity > bestSimilarity) {
-                    // Fuzzy match candidate
-                    bestMatch = heard;
-                    bestSimilarity = similarity;
-                }
-            }
-
-            if (!found) {
-                if (bestMatch && bestSimilarity >= 0.75) {
-                    // Use fuzzy match
-                    fuzzy++;
-                    matched++; // Count as matched
                     details.push({
                         index: i,
                         expected,
-                        heard: bestMatch,
-                        similarity: bestSimilarity,
+                        heard,
+                        similarity,
+                        matched: true
+                    });
+                } else if (similarity >= 0.75) {
+                    // Fuzzy match
+                    fuzzy++;
+                    matched++;
+                    details.push({
+                        index: i,
+                        expected,
+                        heard,
+                        similarity,
                         matched: true,
                         fuzzyMatch: true
                     });
                 } else {
-                    // Missing word
+                    // Too different, count as missing
                     missing++;
                     details.push({
                         index: i,
                         expected,
-                        heard: null,
-                        similarity: 0,
+                        heard,
+                        similarity,
                         matched: false,
                         missing: true
                     });
@@ -587,7 +646,9 @@ class RecitationAnalyzer {
             }
         }
 
-        return { matched, fuzzy, missing, details };
+        const accuracy = verseWords.length > 0 ? matched / verseWords.length : 0;
+
+        return { matched, fuzzy, missing, accuracy, details };
     }
 
     /**
