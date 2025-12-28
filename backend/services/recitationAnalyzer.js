@@ -107,6 +107,7 @@ class RecitationAnalyzer {
 
         let bestMatch = null;
         let bestSimilarity = 0;
+        let topMatches = [];
 
         // Check against all indexed patterns
         for (const pattern of this.fastPathIndex) {
@@ -118,15 +119,24 @@ class RecitationAnalyzer {
             // Calculate similarity using first 30 words of both
             const similarity = levenshteinSimilarity(firstWords, patternFirstWords);
 
+            topMatches.push({ pattern: pattern.description, similarity });
+
             if (similarity > bestSimilarity) {
                 bestSimilarity = similarity;
                 bestMatch = pattern;
             }
         }
 
-        // Return if strong match found (65% threshold)
-        // Lower threshold to handle speech recognition errors
-        if (bestSimilarity >= 0.65) {
+        // Log top 5 matches for debugging
+        topMatches.sort((a, b) => b.similarity - a.similarity);
+        console.log('🔍 Fast-path top matches:');
+        for (let i = 0; i < Math.min(5, topMatches.length); i++) {
+            console.log(`   ${i + 1}. ${topMatches[i].pattern}: ${(topMatches[i].similarity * 100).toFixed(1)}%`);
+        }
+
+        // Return if strong match found (60% threshold)
+        // Lowered to handle speech recognition errors
+        if (bestSimilarity >= 0.60) {
             return {
                 detected: true,
                 pattern: bestMatch,
@@ -135,6 +145,7 @@ class RecitationAnalyzer {
             };
         }
 
+        console.log(`   ❌ Best match ${(bestSimilarity * 100).toFixed(1)}% below 60% threshold`);
         return { detected: false };
     }
 
