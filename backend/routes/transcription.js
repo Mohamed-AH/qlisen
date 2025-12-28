@@ -4,13 +4,12 @@ const fs = require('fs');
 const path = require('path');
 const WhisperService = require('../services/whisperService');
 const RecitationAnalyzer = require('../services/recitationAnalyzer');
-const QuranService = require('../services/quranService');
+const quranService = require('../services/quranService'); // Singleton instance
 const QueueService = require('../services/queueService');
 const EmailService = require('../services/emailService');
 const { upload, handleUploadError } = require('../middleware/audioUpload');
 
 // Initialize services
-const quranService = new QuranService();
 const recitationAnalyzer = new RecitationAnalyzer(quranService);
 const whisperService = new WhisperService();
 const queueService = new QueueService();
