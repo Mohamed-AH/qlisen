@@ -110,12 +110,13 @@ class RecitationAnalyzer {
 
         // Check against all indexed patterns
         for (const pattern of this.fastPathIndex) {
-            // For surah beginnings, compare with first 30 words
-            // For famous passages, compare with full text if transcript is longer
-            const compareText = pattern.type === 'surah_beginning' ? firstWords : preprocessedText;
+            // For all patterns, compare transcript beginning with pattern beginning
+            // Extract first 30 words from pattern for fair comparison
+            const patternWords = pattern.text.split(/\s+/).filter(w => w.length > 0);
+            const patternFirstWords = patternWords.slice(0, Math.min(30, patternWords.length)).join(' ');
 
-            // Calculate similarity
-            const similarity = levenshteinSimilarity(compareText, pattern.text);
+            // Calculate similarity using first 30 words of both
+            const similarity = levenshteinSimilarity(firstWords, patternFirstWords);
 
             if (similarity > bestSimilarity) {
                 bestSimilarity = similarity;
