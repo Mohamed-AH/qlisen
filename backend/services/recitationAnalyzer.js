@@ -344,13 +344,19 @@ class RecitationAnalyzer {
         const topScore = sorted[0][1];
         const secondScore = sorted.length > 1 ? sorted[1][1] : 0;
 
+        // Log top 10 candidates for debugging
+        console.log('📊 N-gram top 10 candidates:');
+        for (let i = 0; i < Math.min(10, sorted.length); i++) {
+            const [surahId, score] = sorted[i];
+            const verse = this.quranService.quranData.find(v => v.surah === surahId);
+            console.log(`   ${i + 1}. ${verse.surahName} (${surahId}): ${(score * 100).toFixed(1)}%`);
+        }
+
         // Check if result is ambiguous (top 2 scores are very close)
         const ambiguous = sorted.length > 1 && (topScore - secondScore) < 0.05;
 
         if (ambiguous) {
             console.log(`⚠️ N-gram result ambiguous: Top 2 scores very close`);
-            console.log(`   1. ${sorted[0][0]}: ${(sorted[0][1] * 100).toFixed(1)}%`);
-            console.log(`   2. ${sorted[1][0]}: ${(sorted[1][1] * 100).toFixed(1)}%`);
         }
 
         // Get surah info
@@ -358,7 +364,7 @@ class RecitationAnalyzer {
         const primaryVerse = this.quranService.quranData.find(v => v.surah === primarySurahId);
 
         const processingTime = Date.now() - startTime;
-        console.log(`📊 N-gram result: ${primaryVerse.surahName} (${(topScore * 100).toFixed(1)}% confidence, ${processingTime}ms)`);
+        console.log(`✅ N-gram winner: ${primaryVerse.surahName} (${(topScore * 100).toFixed(1)}% confidence, ${processingTime}ms)`);
 
         return {
             success: true,
