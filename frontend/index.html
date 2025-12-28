@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Qlisen - Quran Recitation Verification">
+    <title id="pageTitle">قليسن - تحقق من تلاوتك</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Crimson+Pro:wght@400;600&family=Rakkas&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-top">
+            <div class="header-left">
+                <button class="help-btn" onclick="showHelp()" title="Help">
+                    <span>❓</span>
+                </button>
+                <button class="lang-toggle" onclick="toggleLanguage()" id="langBtn">English</button>
+            </div>
+            <div class="header-right">
+                <span id="userEmail" class="user-email"></span>
+            </div>
+        </div>
+        <div class="header-center">
+            <h1 class="app-title" id="appTitle">قليسن</h1>
+            <p class="app-subtitle" id="appSubtitle">تحقق من تلاوة القرآن الكريم</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Recording Section -->
+        <section class="record-section">
+            <div class="record-card glass-card">
+                <h2 id="recordTitle">ابدأ التسجيل</h2>
+                <p id="recordInstructions" class="instructions">
+                    اضغط على زر الاستماع وابدأ التلاوة، ثم اضغط مرة أخرى للتوقف
+                </p>
+
+                <!-- Record Button -->
+                <button id="recordBtn" class="btn record-btn" onclick="toggleRecording()">
+                    <span class="btn-icon" id="recordIcon">🎤</span>
+                    <span class="btn-text" id="recordText">استمع</span>
+                </button>
+
+                <!-- Recording Status -->
+                <div id="recordingStatus" class="recording-status hidden">
+                    <div class="recording-indicator">
+                        <span class="pulse-dot"></span>
+                        <span id="recordingText">جاري التسجيل...</span>
+                    </div>
+                    <div id="recordingTimer" class="recording-timer">00:00</div>
+                </div>
+
+                <!-- Processing Status -->
+                <div id="processingStatus" class="processing-status hidden">
+                    <div class="spinner"></div>
+                    <p id="processingText">جاري المعالجة...</p>
+                    <p id="processingStep" class="processing-step"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="resultsSection" class="results-section hidden">
+            <div class="results-card glass-card">
+                <h2 id="resultsTitle">نتيجة التحليل</h2>
+
+                <!-- Surah Info -->
+                <div class="surah-info">
+                    <h3 id="surahName" class="surah-name"></h3>
+                    <p id="verseRange" class="verse-range"></p>
+                    <div class="accuracy-badge">
+                        <span id="accuracyPercent" class="accuracy-number"></span>
+                        <span id="accuracyLabel">الدقة</span>
+                    </div>
+                </div>
+
+                <!-- Transcript -->
+                <div class="transcript-section">
+                    <h4 id="transcriptTitle">النص المنسوخ:</h4>
+                    <p id="transcriptText" class="transcript-text"></p>
+                </div>
+
+                <!-- Verses Analysis -->
+                <div class="verses-section">
+                    <h4 id="versesTitle">تحليل الآيات:</h4>
+                    <div id="versesList" class="verses-list"></div>
+                </div>
+
+                <!-- Recommendations -->
+                <div id="recommendationsSection" class="recommendations-section hidden">
+                    <h4 id="recommendationsTitle">توصيات:</h4>
+                    <ul id="recommendationsList" class="recommendations-list"></ul>
+                </div>
+
+                <!-- Actions -->
+                <div class="results-actions">
+                    <button class="btn-secondary" onclick="resetRecording()">
+                        <span id="tryAgainText">حاول مرة أخرى</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Queued Message -->
+        <section id="queuedSection" class="queued-section hidden">
+            <div class="queued-card glass-card">
+                <div class="queued-icon">📧</div>
+                <h2 id="queuedTitle">تم إضافتك إلى قائمة الانتظار</h2>
+                <p id="queuedMessage">
+                    الخادم مشغول حالياً. سنرسل لك النتائج عبر البريد الإلكتروني قريباً.
+                </p>
+                <p class="queue-job-id">
+                    <span id="jobIdLabel">رقم الطلب:</span>
+                    <code id="jobId"></code>
+                </p>
+                <button class="btn-secondary" onclick="resetRecording()">
+                    <span id="backText">العودة</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2 id="helpTitle">كيفية الاستخدام</h2>
+                <button class="modal-close" onclick="closeHelp()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ol id="helpSteps">
+                    <li>اضغط على زر "استمع" لبدء التسجيل</li>
+                    <li>اتل ما تحفظ من القرآن الكريم</li>
+                    <li>اضغط على الزر مرة أخرى للتوقف</li>
+                    <li>انتظر النتائج - سيتم تحليل تلاوتك آية بآية</li>
+                    <li>راجع الآيات المفقودة والكلمات الناقصة</li>
+                </ol>
+                <div class="help-tips">
+                    <h3 id="tipsTitle">نصائح:</h3>
+                    <ul id="tipsList">
+                        <li>تأكد من وجودك في مكان هادئ</li>
+                        <li>تكلم بوضوح وبصوت مسموع</li>
+                        <li>يفضل تلاوة سورة واحدة في كل تسجيل</li>
+                        <li>السور القصيرة تعطي نتائج أسرع</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/translations.js"></script>
+    <script src="js/recorder.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
