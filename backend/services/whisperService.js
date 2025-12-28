@@ -1,24 +1,119 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const path = require('path');
 
 /**
- * Service for handling OpenAI Whisper API transcription
+ * Service for handling Whisper transcription
+ * Supports both local (whisper.cpp) and cloud (OpenAI API) modes
  * Optimized for Arabic Quran recitation
  */
 class WhisperService {
     constructor(apiKey) {
+        this.useLocal = process.env.USE_LOCAL_WHISPER === 'true';
         this.apiKey = apiKey || process.env.OPENAI_API_KEY;
         this.baseURL = 'https://api.openai.com/v1/audio/transcriptions';
+        this.modelName = process.env.WHISPER_MODEL || 'base'; // tiny, base, small, medium, large
+
+        if (this.useLocal) {
+            console.log('🏠 Whisper configured for LOCAL mode (model: ' + this.modelName + ')');
+            this.nodeWhisper = null; // Lazy load when needed
+        } else {
+            console.log('☁️  Whisper configured for API mode');
+        }
     }
 
     /**
-     * Transcribe Arabic audio using Whisper API
+     * Lazy load node-whisper (only when needed for local mode)
+     */
+    async loadLocalWhisper() {
+        if (!this.nodeWhisper) {
+            try {
+                const { nodewhisper } = require('nodejs-whisper');
+                this.nodeWhisper = nodewhisper;
+                console.log('✅ Local Whisper loaded successfully');
+            } catch (error) {
+                throw new Error('nodejs-whisper not installed. Run: npm install nodejs-whisper');
+            }
+        }
+        return this.nodeWhisper;
+    }
+
+    /**
+     * Transcribe using local Whisper (whisper.cpp)
+     * @param {string} audioFilePath - Path to audio file
+     * @returns {Promise<Object>} - Transcription result
+     */
+    async transcribeLocal(audioFilePath) {
+        try {
+            if (!fs.existsSync(audioFilePath)) {
+                throw new Error(`Audio file not found: ${audioFilePath}`);
+            }
+
+            console.log('🏠 Transcribing locally with whisper.cpp...');
+            console.log(`   Model: ${this.modelName}`);
+            console.log(`   File: ${path.basename(audioFilePath)}`);
+
+            const nodewhisper = await this.loadLocalWhisper();
+            const startTime = Date.now();
+
+            // Transcribe with nodejs-whisper
+            const output = await nodewhisper(audioFilePath, {
+                modelName: this.modelName,
+                autoDownloadModelName: this.modelName, // Auto-download model if not exists
+                whisperOptions: {
+                    language: 'ar',
+                    outputInText: true,
+                    outputInVtt: false,
+                    outputInSrt: false,
+                    translateToEnglish: false,
+                    wordTimestamps: false,
+                    timestamps_length: 20,
+                    splitOnWord: true
+                }
+            });
+
+            const processingTime = Date.now() - startTime;
+            console.log(`✅ Local transcription completed in ${processingTime}ms`);
+
+            // Extract text from output
+            let transcript = '';
+            if (typeof output === 'string') {
+                transcript = output;
+            } else if (output && output.text) {
+                transcript = output.text;
+            } else {
+                transcript = String(output);
+            }
+
+            // Clean up transcript
+            transcript = transcript.trim();
+
+            return {
+                success: true,
+                transcript,
+                processingTime,
+                method: 'local',
+                model: this.modelName
+            };
+
+        } catch (error) {
+            console.error('❌ Local Whisper error:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                transcript: null
+            };
+        }
+    }
+
+    /**
+     * Transcribe using OpenAI Whisper API
      * @param {string} audioFilePath - Path to audio file
      * @param {Object} options - Additional options
      * @returns {Promise<Object>} - Transcription result
      */
-    async transcribeArabic(audioFilePath, options = {}) {
+    async transcribeAPI(audioFilePath, options = {}) {
         try {
             if (!this.apiKey) {
                 throw new Error('OPENAI_API_KEY not configured');
@@ -55,12 +150,13 @@ class WhisperService {
             });
 
             const processingTime = Date.now() - startTime;
-            console.log(`✅ Whisper transcription completed in ${processingTime}ms`);
+            console.log(`✅ Whisper API transcription completed in ${processingTime}ms`);
 
             return {
                 success: true,
                 transcript: response.data.text,
                 processingTime,
+                method: 'api',
                 metadata: {
                     language: response.data.language,
                     duration: response.data.duration,
@@ -85,6 +181,20 @@ class WhisperService {
                 error: error.message,
                 transcript: null
             };
+        }
+    }
+
+    /**
+     * Transcribe Arabic audio (routes to local or API based on config)
+     * @param {string} audioFilePath - Path to audio file
+     * @param {Object} options - Additional options
+     * @returns {Promise<Object>} - Transcription result
+     */
+    async transcribeArabic(audioFilePath, options = {}) {
+        if (this.useLocal) {
+            return await this.transcribeLocal(audioFilePath);
+        } else {
+            return await this.transcribeAPI(audioFilePath, options);
         }
     }
 
