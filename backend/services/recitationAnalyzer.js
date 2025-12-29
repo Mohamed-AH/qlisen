@@ -1687,9 +1687,50 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Generate repeat summary statistics
+     *
+     * @param {Object} repeatDetection - Repeat detection results
+     * @returns {Object} - Summary statistics
+     */
+    generateRepeatSummary(repeatDetection) {
+        if (!repeatDetection || !repeatDetection.repeats) {
+            return {
+                total: 0,
+                byType: {
+                    immediate: 0,
+                    section: 0,
+                    verse: 0
+                },
+                userCorrections: 0,
+                naturalQuranicRepetition: 0
+            };
+        }
+
+        const summary = {
+            total: repeatDetection.repeats.length,
+            byType: {
+                immediate: 0,
+                section: 0,
+                verse: 0
+            },
+            userCorrections: repeatDetection.repeats.length,
+            naturalQuranicRepetition: 0
+        };
+
+        // Count by type
+        for (const repeat of repeatDetection.repeats) {
+            if (repeat.type && summary.byType[repeat.type] !== undefined) {
+                summary.byType[repeat.type]++;
+            }
+        }
+
+        return summary;
+    }
+
+    /**
      * Phase 4: Generate comprehensive report
      */
-    generateReport(surahDetection, alignments, skipDetection, verseRange, metadata, preprocessedText = null) {
+    generateReport(surahDetection, alignments, skipDetection, verseRange, metadata, preprocessedText = null, repeatDetection = null) {
         // Calculate overall accuracy
         const totalWords = alignments.reduce((sum, a) => sum + a.wordCount, 0);
         const matchedWords = alignments.reduce((sum, a) => sum + a.wordsMatched, 0);
@@ -1804,6 +1845,39 @@ class RecitationAnalyzer {
             mistakesByCategory[category].push(mistake);
         }
 
+        // Generate repeat summary and add positive feedback
+        const repeatSummary = this.generateRepeatSummary(repeatDetection);
+        const repeats = repeatDetection?.repeats || [];
+
+        // Add positive feedback messages to repeats
+        const repeatsWithFeedback = repeats.map(repeat => {
+            let feedback = '';
+            if (repeat.type === 'immediate') {
+                feedback = '✅ Good! You corrected yourself - this shows careful recitation';
+            } else if (repeat.type === 'section') {
+                feedback = '✅ You repeated a section for practice - excellent learning approach';
+            } else if (repeat.type === 'verse') {
+                feedback = '✅ You practiced this verse multiple times - repetition aids memorization';
+            } else if (repeat.type === 'phrase') {
+                const words = repeat.words?.join(' ') || 'this phrase';
+                feedback = `✅ You repeated "${words}" - likely practicing this phrase`;
+            } else if (repeat.type === 'word') {
+                const words = repeat.words?.join(' ') || 'this word';
+                feedback = `✅ You repeated "${words}" for emphasis or correction`;
+            } else if (repeat.feedback) {
+                // If repeat already has feedback, keep it
+                feedback = repeat.feedback;
+            } else {
+                // Default feedback for unknown types
+                feedback = '✅ Repetition detected - this shows you are being careful with your recitation';
+            }
+
+            return {
+                ...repeat,
+                feedback
+            };
+        });
+
         return {
             success: true,
             summary: {
@@ -1835,6 +1909,8 @@ class RecitationAnalyzer {
             mistakes,
             mistakeSummary,
             mistakesByCategory,
+            repeats: repeatsWithFeedback,
+            repeatSummary,
             recommendations
         };
     }
@@ -2608,7 +2684,8 @@ class RecitationAnalyzer {
                 totalProcessingTime,
                 verificationScores: metadata.verificationScores
             },
-            preprocessedText
+            preprocessedText,
+            repeatDetection
         );
 
         // Add confidence and verification scores to report
