@@ -908,7 +908,7 @@ class RecitationAnalyzer {
 
         console.log(`\n🔍 Word-by-word sequential matching:`);
         console.log(`   Verse words: ${verseWords.length}, Transcript words: ${mergedTranscriptWords.length}`);
-        console.log(`   Showing first 10 word comparisons:\n`);
+        console.log(`   Showing first 10 comparisons + ALL failed matches (<70%):\n`);
 
         for (const verseWord of verseWords) {
             let bestSimilarity = 0;
@@ -935,11 +935,18 @@ class RecitationAnalyzer {
                 }
             }
 
-            // DEBUG: Log first 10 comparisons with detailed info
-            if (debugWordIndex < 10) {
+            // DEBUG: Log first 10 comparisons + ALL failed matches
+            const shouldLog = debugWordIndex < 10 || bestSimilarity < 0.70;
+            if (shouldLog) {
                 const status = bestSimilarity >= 0.95 ? '✅' : bestSimilarity >= 0.80 ? '⚠️' : bestSimilarity >= 0.70 ? '🟨' : '❌';
                 const transcriptWord = bestPos >= 0 ? mergedTranscriptWords[bestPos] : '[NOT FOUND]';
                 const normalizedTranscript = bestPos >= 0 ? this.preprocessor.normalizeForNgrams(transcriptWord) : '';
+
+                if (debugWordIndex === 10 && failedMatches > 0) {
+                    console.log(`\n   ... (skipping successful matches) ...\n`);
+                    console.log(`   ❌ FAILED MATCHES (similarity < 70%):\n`);
+                }
+
                 console.log(`   [${debugWordIndex}] ${status} Verse: "${verseWord}" → Transcript: "${transcriptWord}"`);
                 console.log(`       Normalized: "${normalizedVerseWord}" vs "${normalizedTranscript}"`);
                 console.log(`       Similarity: ${(bestSimilarity * 100).toFixed(1)}% → Credit: ${bestSimilarity >= 0.70 ? bestSimilarity.toFixed(2) : '0.00'}`);
