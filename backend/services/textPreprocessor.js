@@ -10,9 +10,11 @@ class TextPreprocessor {
             // Single letters (except valid Arabic prefixes)
             'Y', 'N', 'R', 'A', 'E', 'I', 'O', 'U',
             // Filler words
-            'يعني', 'اه', 'ام', 'ممم', 'اهم', 'يا',
+            // NOTE: "يا" removed from garbage list - it's critical in Quran (يٓايها الذين)
+            'يعني', 'اه', 'ام', 'ممم', 'اهم',
             // Common speech errors
-            'مين', 'ايه', 'لي', 'ما',
+            'مين', 'ايه', 'لي',
+            // NOTE: "ما" removed - it's used in Quran (ما عند الله, ماذا, etc.)
             // Numbers
             '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩', '٠'
         ]);
