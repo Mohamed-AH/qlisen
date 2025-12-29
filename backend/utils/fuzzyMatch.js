@@ -188,5 +188,6 @@ module.exports = {
     levenshteinDistance,
     levenshteinSimilarity,
     findSimilarNgrams,
-    buildFirstWordIndex
+    buildFirstWordIndex,
+    normalizeForNgrams
 };

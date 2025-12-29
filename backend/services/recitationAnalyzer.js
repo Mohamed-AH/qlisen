@@ -277,7 +277,12 @@ class RecitationAnalyzer {
 
         // Strategy 1: Fuzzy 2-grams (most tolerant)
         for (const ngram of ngrams2) {
-            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.65);
+            const matches = findSimilarNgrams(
+                ngram,
+                this.quranService.ngramIndex,
+                0.65,
+                this.quranService.firstWordIndex  // Use first-word index for performance
+            );
             for (const match of matches) {
                 for (const verseInfo of match.verses) {
                     const verse = this.quranService.quranData[verseInfo.verseId];
@@ -292,7 +297,12 @@ class RecitationAnalyzer {
 
         // Strategy 2: Fuzzy 3-grams (balanced)
         for (const ngram of ngrams3) {
-            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.70);
+            const matches = findSimilarNgrams(
+                ngram,
+                this.quranService.ngramIndex,
+                0.70,
+                this.quranService.firstWordIndex  // Use first-word index for performance
+            );
             for (const match of matches) {
                 for (const verseInfo of match.verses) {
                     const verse = this.quranService.quranData[verseInfo.verseId];
@@ -307,7 +317,12 @@ class RecitationAnalyzer {
 
         // Strategy 3: Fuzzy 4-grams (most precise)
         for (const ngram of ngrams4) {
-            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.75);
+            const matches = findSimilarNgrams(
+                ngram,
+                this.quranService.ngramIndex,
+                0.75,
+                this.quranService.firstWordIndex  // Use first-word index for performance
+            );
             for (const match of matches) {
                 for (const verseInfo of match.verses) {
                     const verse = this.quranService.quranData[verseInfo.verseId];
@@ -441,7 +456,12 @@ class RecitationAnalyzer {
 
         // Strategy 1: Fuzzy 2-grams (most tolerant)
         for (const ngram of ngrams2) {
-            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.65);
+            const matches = findSimilarNgrams(
+                ngram,
+                this.quranService.ngramIndex,
+                0.65,
+                this.quranService.firstWordIndex  // Use first-word index for performance
+            );
             for (const match of matches) {
                 for (const verseInfo of match.verses) {
                     const verse = this.quranService.quranData[verseInfo.verseId];
@@ -456,7 +476,12 @@ class RecitationAnalyzer {
 
         // Strategy 2: Fuzzy 3-grams (balanced)
         for (const ngram of ngrams3) {
-            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.70);
+            const matches = findSimilarNgrams(
+                ngram,
+                this.quranService.ngramIndex,
+                0.70,
+                this.quranService.firstWordIndex  // Use first-word index for performance
+            );
             for (const match of matches) {
                 for (const verseInfo of match.verses) {
                     const verse = this.quranService.quranData[verseInfo.verseId];
@@ -471,7 +496,12 @@ class RecitationAnalyzer {
 
         // Strategy 3: Fuzzy 4-grams (most precise)
         for (const ngram of ngrams4) {
-            const matches = findSimilarNgrams(ngram, this.quranService.ngramIndex, 0.75);
+            const matches = findSimilarNgrams(
+                ngram,
+                this.quranService.ngramIndex,
+                0.75,
+                this.quranService.firstWordIndex  // Use first-word index for performance
+            );
             for (const match of matches) {
                 for (const verseInfo of match.verses) {
                     const verse = this.quranService.quranData[verseInfo.verseId];
