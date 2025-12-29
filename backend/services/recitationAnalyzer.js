@@ -639,6 +639,141 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Detect repeated words/phrases in recitation
+     * Common when users correct themselves or practice
+     *
+     * @param {Array<string>} transcriptWords - Array of words from transcript
+     * @returns {Object} { repeats: [...], cleanedWords: [...], stats: {...} }
+     */
+    detectRepeats(transcriptWords) {
+        const repeats = [];
+        const cleanedWords = [];
+        let i = 0;
+
+        console.log('🔄 Detecting Repeated Sequences');
+        console.log('─'.repeat(55));
+
+        while (i < transcriptWords.length) {
+            let repeatFound = false;
+
+            // Try to find repeats of different lengths (longest first)
+            // Check up to 10-word sequences
+            for (let seqLength = Math.min(10, Math.floor((transcriptWords.length - i) / 2)); seqLength >= 2; seqLength--) {
+                const currentSeq = transcriptWords.slice(i, i + seqLength);
+                const nextSeq = transcriptWords.slice(i + seqLength, i + seqLength * 2);
+
+                // Check if next sequence matches current sequence
+                if (currentSeq.length === nextSeq.length &&
+                    currentSeq.every((word, idx) => word === nextSeq[idx])) {
+
+                    // Found a repeat!
+                    const repeatType = this.classifyRepeat(currentSeq.length);
+
+                    repeats.push({
+                        type: repeatType,
+                        words: currentSeq,
+                        wordCount: currentSeq.length,
+                        position: i,
+                        repetitions: 2, // Could be extended to detect 3+ repeats
+                        feedback: this.getRepeatFeedback(repeatType, currentSeq)
+                    });
+
+                    console.log(`   ✓ Found ${repeatType} repeat at position ${i}:`);
+                    console.log(`     "${currentSeq.join(' ')}" (${seqLength} words)`);
+
+                    // Add only the first occurrence to cleaned words
+                    cleanedWords.push(...currentSeq);
+
+                    // Skip both occurrences
+                    i += seqLength * 2;
+                    repeatFound = true;
+                    break;
+                }
+            }
+
+            // Check for single word repeat
+            if (!repeatFound && i + 1 < transcriptWords.length &&
+                transcriptWords[i] === transcriptWords[i + 1]) {
+
+                repeats.push({
+                    type: 'single_word',
+                    words: [transcriptWords[i]],
+                    wordCount: 1,
+                    position: i,
+                    repetitions: 2,
+                    feedback: `✅ Good! You repeated "${transcriptWords[i]}" - shows careful recitation`
+                });
+
+                console.log(`   ✓ Found single word repeat: "${transcriptWords[i]}"`);
+
+                // Add only first occurrence
+                cleanedWords.push(transcriptWords[i]);
+                i += 2;
+                repeatFound = true;
+            }
+
+            // No repeat found, add word and continue
+            if (!repeatFound) {
+                cleanedWords.push(transcriptWords[i]);
+                i++;
+            }
+        }
+
+        const stats = {
+            originalWordCount: transcriptWords.length,
+            cleanedWordCount: cleanedWords.length,
+            repeatsDetected: repeats.length,
+            wordsRemoved: transcriptWords.length - cleanedWords.length
+        };
+
+        if (repeats.length > 0) {
+            console.log(`\n📊 Repeat Detection Summary:`);
+            console.log(`   Total repeats found: ${repeats.length}`);
+            console.log(`   Words removed: ${stats.wordsRemoved}`);
+            console.log(`   Original: ${stats.originalWordCount} words → Cleaned: ${stats.cleanedWordCount} words`);
+        } else {
+            console.log(`   No repeats detected`);
+        }
+        console.log('');
+
+        return {
+            repeats,
+            cleanedWords,
+            stats
+        };
+    }
+
+    /**
+     * Classify the type of repeat based on sequence length
+     */
+    classifyRepeat(wordCount) {
+        if (wordCount === 1) return 'single_word';
+        if (wordCount >= 2 && wordCount <= 3) return 'correction';
+        if (wordCount >= 4 && wordCount <= 7) return 'phrase';
+        return 'verse_section';
+    }
+
+    /**
+     * Generate positive feedback for repeats
+     */
+    getRepeatFeedback(type, words) {
+        const phrase = words.join(' ');
+
+        switch(type) {
+            case 'single_word':
+                return `✅ Good! You repeated "${phrase}" - shows careful recitation`;
+            case 'correction':
+                return `✅ Self-correction: "${phrase}" - this shows you're paying attention`;
+            case 'phrase':
+                return `✅ You repeated "${phrase}" - likely practicing this phrase`;
+            case 'verse_section':
+                return `✅ You repeated a section - this is normal during memorization practice`;
+            default:
+                return `✅ Repeat detected - this is okay during practice`;
+        }
+    }
+
+    /**
      * Phase 2: Align transcript to verses (simplified alignment for now)
      */
     async alignToVerses(preprocessedText, surahId) {
@@ -1451,6 +1586,15 @@ class RecitationAnalyzer {
                 };
             }
 
+            // Detect and remove repeated sequences
+            console.log('\n═══════════════════════════════════════════════════════');
+            const transcriptWords = preprocessed.normalized.split(/\s+/).filter(w => w.length > 0);
+            const repeatDetection = this.detectRepeats(transcriptWords);
+
+            // Use cleaned transcript for analysis (removes repeats)
+            const analyzableText = repeatDetection.cleanedWords.join(' ');
+            const analyzableWordCount = repeatDetection.cleanedWords.length;
+
             console.log('\n═══════════════════════════════════════════════════════');
             console.log('🔍 MULTI-PASS DETECTION WITH VERIFICATION');
             console.log('═══════════════════════════════════════════════════════\n');
@@ -1460,7 +1604,7 @@ class RecitationAnalyzer {
 
             // ========== PASS 1: FAST-PATH ==========
             console.log('📍 PASS 1: Fast-Path Detection');
-            const fastPathResult = this.detectFromFastPath(preprocessed.normalized);
+            const fastPathResult = this.detectFromFastPath(analyzableText);
 
             if (fastPathResult.detected) {
                 console.log(`   Candidate: ${fastPathResult.pattern.description}`);
@@ -1474,7 +1618,7 @@ class RecitationAnalyzer {
 
                 // VERIFY using ENTIRE transcript
                 const verification = this.verifyPositionStrict(
-                    preprocessed.normalized,
+                    analyzableText,
                     candidateVerses
                 );
 
@@ -1483,7 +1627,7 @@ class RecitationAnalyzer {
 
                     // Position verified! Proceed to detailed analysis
                     return await this.performDetailedAnalysis(
-                        preprocessed.normalized,
+                        analyzableText,
                         fastPathResult.pattern.surahId,
                         fastPathResult.pattern.startVerse,
                         fastPathResult.pattern.endVerse,
@@ -1493,7 +1637,8 @@ class RecitationAnalyzer {
                             confidence: verification.confidence,
                             verificationScores: verification.scores,
                             pipelineStart
-                        }
+                        },
+                        repeatDetection
                     );
                 } else {
                     console.log(`\n❌ PASS 1 REJECTED - ${verification.reason}\n`);
@@ -1511,7 +1656,7 @@ class RecitationAnalyzer {
 
             // ========== PASS 2: N-GRAM ==========
             console.log('📍 PASS 2: N-Gram Detection');
-            const ngramResult = await this.identifySurahNgramOnly(preprocessed.normalized);
+            const ngramResult = await this.identifySurahNgramOnly(analyzableText);
 
             if (ngramResult.success && ngramResult.primarySurah) {
                 console.log(`   Candidate: ${ngramResult.primarySurah.name} (confidence: ${(ngramResult.primarySurah.confidence * 100).toFixed(1)}%)`);
@@ -1519,7 +1664,7 @@ class RecitationAnalyzer {
                 // For n-gram: First detect verse range, THEN verify
                 console.log('   Detecting verse range within surah...');
                 const alignmentResult = await this.alignToVerses(
-                    preprocessed.normalized,
+                    analyzableText,
                     ngramResult.primarySurah.id
                 );
 
@@ -1535,7 +1680,7 @@ class RecitationAnalyzer {
 
                 // VERIFY using the detected verse range
                 const verification = this.verifyPositionStrict(
-                    preprocessed.normalized,
+                    analyzableText,
                     candidateVerses
                 );
 
@@ -1544,7 +1689,7 @@ class RecitationAnalyzer {
 
                     // Position verified! Proceed to detailed analysis
                     return await this.performDetailedAnalysis(
-                        preprocessed.normalized,
+                        analyzableText,
                         ngramResult.primarySurah.id,
                         verseRange.startVerse,
                         verseRange.endVerse,
@@ -1554,7 +1699,8 @@ class RecitationAnalyzer {
                             confidence: verification.confidence,
                             verificationScores: verification.scores,
                             pipelineStart
-                        }
+                        },
+                        repeatDetection
                     );
                 } else {
                     console.log(`\n❌ PASS 2 REJECTED - ${verification.reason}\n`);
@@ -1576,7 +1722,7 @@ class RecitationAnalyzer {
                     console.log('✅ PASS 2 ACCEPTED (DEBUG OVERRIDE) - Proceeding with n-gram result\n');
 
                     return await this.performDetailedAnalysis(
-                        preprocessed.normalized,
+                        analyzableText,
                         ngramResult.primarySurah.id,
                         verseRange.startVerse,
                         verseRange.endVerse,
@@ -1586,7 +1732,8 @@ class RecitationAnalyzer {
                             confidence: 'debug_low',  // Mark as debug/low confidence
                             verificationScores: verification.scores,
                             pipelineStart
-                        }
+                        },
+                        repeatDetection
                     );
                 }
             } else {
@@ -1640,7 +1787,7 @@ class RecitationAnalyzer {
     /**
      * Perform detailed analysis after position is verified
      */
-    async performDetailedAnalysis(preprocessedText, surahId, startVerse, endVerse, metadata) {
+    async performDetailedAnalysis(preprocessedText, surahId, startVerse, endVerse, metadata, repeatDetection = null) {
         console.log('═══════════════════════════════════════════════════════');
         console.log('📊 DETAILED ANALYSIS (Position Verified)');
         console.log('═══════════════════════════════════════════════════════\n');
@@ -1697,6 +1844,12 @@ class RecitationAnalyzer {
         report.confidence = metadata.confidence;
         report.verificationScores = metadata.verificationScores;
         report.detectionMethod = metadata.detectionMethod;
+
+        // Add repeat detection results if available
+        if (repeatDetection && repeatDetection.repeats.length > 0) {
+            report.repeats = repeatDetection.repeats;
+            report.repeatStats = repeatDetection.stats;
+        }
 
         return report;
     }
