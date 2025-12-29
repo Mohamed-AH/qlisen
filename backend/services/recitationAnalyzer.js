@@ -980,8 +980,13 @@ class RecitationAnalyzer {
             let bestSimilarity = 0;
             let bestPos = -1;
 
-            // Search forward in transcript from current position
-            for (let i = transcriptPos; i < mergedTranscriptWords.length; i++) {
+            // WINDOWED SEARCH: Only look ahead 5 words to prevent greedy skipping
+            // This prevents matching distant words when nearby words are close enough
+            const SEARCH_WINDOW = 5;
+            const searchLimit = Math.min(transcriptPos + SEARCH_WINDOW, mergedTranscriptWords.length);
+
+            // Search forward in transcript with limited window
+            for (let i = transcriptPos; i < searchLimit; i++) {
                 const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(mergedTranscriptWords[i]);
                 const similarity = levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord);
 
@@ -998,16 +1003,23 @@ class RecitationAnalyzer {
             }
 
             // DEBUG: Log ALL comparisons
-            const status = bestSimilarity >= 0.95 ? '✅' : bestSimilarity >= 0.80 ? '⚠️' : bestSimilarity >= 0.70 ? '🟨' : '❌';
+            const status = bestSimilarity >= 0.95 ? '✅' :
+                          bestSimilarity >= 0.80 ? '⚠️' :
+                          bestSimilarity >= 0.65 ? '🟨' :
+                          bestSimilarity >= 0.60 ? '🟧' : '❌';
             const transcriptWord = bestPos >= 0 ? mergedTranscriptWords[bestPos] : '[NOT FOUND]';
             const normalizedTranscript = bestPos >= 0 ? this.preprocessor.normalizeForNgrams(transcriptWord) : '';
 
-            console.log(`   [${debugWordIndex}] ${status} Verse: "${verseWord}" → Transcript: "${transcriptWord}"`);
+            const distance = bestPos >= 0 ? bestPos - transcriptPos : -1;
+            const windowInfo = distance >= 0 ? ` (distance: +${distance})` : '';
+
+            console.log(`   [${debugWordIndex}] ${status} Verse: "${verseWord}" → Transcript: "${transcriptWord}"${windowInfo}`);
             console.log(`       Normalized: "${normalizedVerseWord}" vs "${normalizedTranscript}"`);
-            console.log(`       Similarity: ${(bestSimilarity * 100).toFixed(1)}% → Credit: ${bestSimilarity >= 0.70 ? bestSimilarity.toFixed(2) : '0.00'}`);
+            console.log(`       Similarity: ${(bestSimilarity * 100).toFixed(1)}% → Credit: ${bestSimilarity >= 0.60 ? bestSimilarity.toFixed(2) : '0.00'}`);
 
             // WEIGHTED SCORING: Give partial credit for near-misses
-            if (bestSimilarity >= 0.70) {  // Minimum 70% threshold
+            // LOWERED THRESHOLD: 60% instead of 70% to accept minor Whisper errors
+            if (bestSimilarity >= 0.60) {  // Minimum 60% threshold (was 70%)
                 matchScore += bestSimilarity;  // Add weighted credit
                 transcriptPos = bestPos + 1;  // Move forward past this match
 
@@ -1017,7 +1029,7 @@ class RecitationAnalyzer {
                     partialMatches++;
                 }
             } else {
-                // No match found (below 70% threshold)
+                // No match found (below 60% threshold)
                 failedMatches++;
                 // Don't advance position - continue from same spot
             }
@@ -1030,12 +1042,13 @@ class RecitationAnalyzer {
 
         console.log(`\n📊 Sequential match summary:`);
         console.log(`   Perfect matches (95%+): ${perfectMatches}/${validWords}`);
-        console.log(`   Partial matches (70-95%): ${partialMatches}/${validWords}`);
-        console.log(`   Failed matches (<70%): ${failedMatches}/${validWords}`);
+        console.log(`   Partial matches (60-95%): ${partialMatches}/${validWords}`);
+        console.log(`   Failed matches (<60%): ${failedMatches}/${validWords}`);
         if (skippedMarks > 0) {
             console.log(`   Skipped Unicode marks: ${skippedMarks} (decorative marks like ۚ, ۖ)`);
         }
-        console.log(`   Weighted average: ${(avgScore * 100).toFixed(1)}%\n`);
+        console.log(`   Weighted average: ${(avgScore * 100).toFixed(1)}%`);
+        console.log(`   💡 Using windowed search (5-word lookahead) + 60% threshold\n`);
 
         // Return weighted average based on valid words only
         return validWords > 0 ? matchScore / validWords : 0;
@@ -1077,7 +1090,8 @@ class RecitationAnalyzer {
             }
 
             // WEIGHTED SCORING: Give partial credit for near-misses
-            if (bestSimilarity >= 0.70) {  // Minimum 70% threshold
+            // LOWERED THRESHOLD: 60% to match sequential matching
+            if (bestSimilarity >= 0.60) {  // Minimum 60% threshold (was 70%)
                 coverageScore += bestSimilarity;  // Add weighted credit
             }
         }
