@@ -236,6 +236,13 @@ class TextPreprocessor {
     mergeCommonSplits(words) {
         const merged = [];
         let i = 0;
+        let mergeCount = 0;
+
+        // DEBUG: Log first few words being checked
+        console.log(`🔍 Checking ${words.length} words for merge patterns...`);
+        if (words.length >= 5) {
+            console.log(`   First 5 words: ${words.slice(0, 5).join(' ')}`);
+        }
 
         while (i < words.length) {
             const current = words[i];
@@ -244,12 +251,21 @@ class TextPreprocessor {
             // Check if current + next form a common split pattern
             if (next && this.shouldMergeWords(current, next)) {
                 // Merge the two words
-                merged.push(current + next);
+                const mergedWord = current + next;
+                merged.push(mergedWord);
+                console.log(`   ✓ Merged: "${current}" + "${next}" → "${mergedWord}"`);
+                mergeCount++;
                 i += 2; // Skip both words
             } else {
                 merged.push(current);
                 i += 1;
             }
+        }
+
+        if (mergeCount > 0) {
+            console.log(`🔧 Total merges: ${mergeCount} (${words.length} → ${merged.length} words)`);
+        } else {
+            console.log(`   No merge patterns found`);
         }
 
         return merged;
@@ -264,11 +280,17 @@ class TextPreprocessor {
         const norm1 = this.normalizeForNgrams(word1);
         const norm2 = this.normalizeForNgrams(word2);
 
+        // DEBUG: Log checks for "يا" pattern
+        if (norm1 === 'يا' || norm2 === 'يها' || norm2 === 'ايها') {
+            console.log(`      Checking: "${word1}" (norm: "${norm1}") + "${word2}" (norm: "${norm2}")`);
+        }
+
         // ONLY merge specific known patterns to avoid false positives
         // Being conservative is better than incorrectly merging valid words
 
         // 1. "يا يها" → "يايها" (O you) - most common split
         if (norm1 === 'يا' && (norm2 === 'يها' || norm2 === 'ايها')) {
+            console.log(`      ✓ Match found for يا يها pattern!`);
             return true;
         }
 
