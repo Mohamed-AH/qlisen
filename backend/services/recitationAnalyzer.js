@@ -1791,6 +1791,19 @@ class RecitationAnalyzer {
             recommendations.push('Overall accuracy is low - try reciting more slowly and clearly');
         }
 
+        // Generate mistake summary and categorized mistakes
+        const mistakeSummary = this.generateMistakeSummary(mistakes);
+
+        // Group mistakes by category for easier consumption
+        const mistakesByCategory = {};
+        for (const mistake of mistakes) {
+            const category = this.categorizeMistake(mistake);
+            if (!mistakesByCategory[category]) {
+                mistakesByCategory[category] = [];
+            }
+            mistakesByCategory[category].push(mistake);
+        }
+
         return {
             success: true,
             summary: {
@@ -1820,6 +1833,8 @@ class RecitationAnalyzer {
                 text: a.text
             })),
             mistakes,
+            mistakeSummary,
+            mistakesByCategory,
             recommendations
         };
     }
@@ -2079,6 +2094,83 @@ class RecitationAnalyzer {
                 message: error.message
             };
         }
+    }
+
+    /**
+     * Categorize a mistake based on similarity and type
+     * Maps low-level error types to user-friendly categories
+     *
+     * @param {Object} mistake - The mistake object
+     * @returns {string} - Category name (pronunciation, partial_match, wrong_word, etc.)
+     */
+    categorizeMistake(mistake) {
+        // Direct type mappings
+        if (mistake.type === 'word_order') return 'word_order';
+        if (mistake.type === 'skipped_verse') return 'skipped_verse';
+        if (mistake.type === 'missing_words') return 'missing_words';
+
+        // Character-level errors map to pronunciation issues
+        if (['insertion', 'deletion', 'prefix_addition', 'suffix_addition',
+             'prefix_deletion', 'suffix_deletion'].includes(mistake.type)) {
+            return 'pronunciation';
+        }
+
+        // Substitution with minor severity = partial match
+        if (mistake.type === 'substitution' && mistake.severity === 'minor') {
+            return 'partial_match';
+        }
+
+        // Substitution with medium severity = pronunciation
+        if (mistake.type === 'substitution' && mistake.severity === 'medium') {
+            return 'pronunciation';
+        }
+
+        // Wrong word
+        if (mistake.type === 'wrong_word' || mistake.type === 'substitution') {
+            return 'wrong_word';
+        }
+
+        // Default
+        return 'other';
+    }
+
+    /**
+     * Generate mistake summary statistics grouped by category
+     *
+     * @param {Array} mistakes - Array of mistake objects
+     * @returns {Object} - Summary statistics by category
+     */
+    generateMistakeSummary(mistakes) {
+        const summary = {
+            total: mistakes.length,
+            byCategory: {
+                pronunciation: { count: 0, severity: 'minor', description: 'Minor pronunciation or character errors' },
+                partial_match: { count: 0, severity: 'medium', description: 'Partial word matches with some errors' },
+                wrong_word: { count: 0, severity: 'major', description: 'Completely wrong words' },
+                word_order: { count: 0, severity: 'high', description: 'Correct words but wrong sequence' },
+                missing_words: { count: 0, severity: 'medium', description: 'Words missing from recitation' },
+                skipped_verse: { count: 0, severity: 'major', description: 'Entire verses skipped' },
+                other: { count: 0, severity: 'low', description: 'Other issues' }
+            },
+            bySeverity: {
+                minor: 0,
+                medium: 0,
+                high: 0,
+                major: 0
+            }
+        };
+
+        for (const mistake of mistakes) {
+            const category = this.categorizeMistake(mistake);
+            summary.byCategory[category].count++;
+
+            // Count by severity
+            if (mistake.severity) {
+                summary.bySeverity[mistake.severity]++;
+            }
+        }
+
+        return summary;
     }
 
     /**
