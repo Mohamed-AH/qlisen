@@ -902,6 +902,13 @@ class RecitationAnalyzer {
         let transcriptPos = 0;
         let matchScore = 0;  // Changed from matchedInOrder - now uses weighted scoring
         let debugWordIndex = 0;
+        let perfectMatches = 0;
+        let partialMatches = 0;
+        let failedMatches = 0;
+
+        console.log(`\n🔍 Word-by-word sequential matching:`);
+        console.log(`   Verse words: ${verseWords.length}, Transcript words: ${mergedTranscriptWords.length}`);
+        console.log(`   Showing first 10 word comparisons:\n`);
 
         for (const verseWord of verseWords) {
             let bestSimilarity = 0;
@@ -916,11 +923,6 @@ class RecitationAnalyzer {
                 const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(mergedTranscriptWords[i]);
                 const similarity = levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord);
 
-                // DEBUG: Log first 5 comparisons
-                if (debugWordIndex < 5 && i === transcriptPos) {
-                    console.log(`   [${debugWordIndex}] Verse: "${verseWord}" (norm: "${normalizedVerseWord}") vs Transcript: "${mergedTranscriptWords[i]}" (norm: "${normalizedTranscriptWord}") = ${(similarity * 100).toFixed(1)}%`);
-                }
-
                 // Track best match found
                 if (similarity > bestSimilarity) {
                     bestSimilarity = similarity;
@@ -933,27 +935,41 @@ class RecitationAnalyzer {
                 }
             }
 
+            // DEBUG: Log first 10 comparisons with detailed info
+            if (debugWordIndex < 10) {
+                const status = bestSimilarity >= 0.95 ? '✅' : bestSimilarity >= 0.80 ? '⚠️' : bestSimilarity >= 0.70 ? '🟨' : '❌';
+                const transcriptWord = bestPos >= 0 ? mergedTranscriptWords[bestPos] : '[NOT FOUND]';
+                const normalizedTranscript = bestPos >= 0 ? this.preprocessor.normalizeForNgrams(transcriptWord) : '';
+                console.log(`   [${debugWordIndex}] ${status} Verse: "${verseWord}" → Transcript: "${transcriptWord}"`);
+                console.log(`       Normalized: "${normalizedVerseWord}" vs "${normalizedTranscript}"`);
+                console.log(`       Similarity: ${(bestSimilarity * 100).toFixed(1)}% → Credit: ${bestSimilarity >= 0.70 ? bestSimilarity.toFixed(2) : '0.00'}`);
+            }
+
             // WEIGHTED SCORING: Give partial credit for near-misses
-            // This is more honest than binary pass/fail
-            // Examples:
-            //   "أيديهم" vs "أيتيهم" = 83% → 0.83 credit (not 0!)
-            //   "قل" vs "قل" = 100% → 1.0 credit
-            //   "االموت" vs "الموت" = 90% → 0.90 credit
             if (bestSimilarity >= 0.70) {  // Minimum 70% threshold
                 matchScore += bestSimilarity;  // Add weighted credit
                 transcriptPos = bestPos + 1;  // Move forward past this match
 
-                // DEBUG: Log weighted matches
-                if (debugWordIndex < 5) {
-                    console.log(`      → Matched with ${(bestSimilarity * 100).toFixed(1)}% credit`);
+                if (bestSimilarity >= 0.95) {
+                    perfectMatches++;
+                } else {
+                    partialMatches++;
                 }
             } else {
                 // No match found (below 70% threshold)
+                failedMatches++;
                 // Don't advance position - continue from same spot
             }
 
             debugWordIndex++;
         }
+
+        const avgScore = verseWords.length > 0 ? matchScore / verseWords.length : 0;
+        console.log(`\n📊 Sequential match summary:`);
+        console.log(`   Perfect matches (95%+): ${perfectMatches}/${verseWords.length}`);
+        console.log(`   Partial matches (70-95%): ${partialMatches}/${verseWords.length}`);
+        console.log(`   Failed matches (<70%): ${failedMatches}/${verseWords.length}`);
+        console.log(`   Weighted average: ${(avgScore * 100).toFixed(1)}%\n`);
 
         // Return weighted average instead of binary count
         return verseWords.length > 0 ? matchScore / verseWords.length : 0;
