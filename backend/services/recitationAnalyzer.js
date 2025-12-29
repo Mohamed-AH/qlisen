@@ -882,6 +882,10 @@ class RecitationAnalyzer {
      * This is the MOST IMPORTANT metric for verifying correct position
      */
     calculateSequentialMatch(transcriptWords, verseWords) {
+        // CRITICAL: Merge common word splits BEFORE matching
+        // Fixes word boundary mismatches: "يا يها" → "يايها"
+        const mergedTranscriptWords = this.preprocessor.mergeCommonSplits(transcriptWords);
+
         let transcriptPos = 0;
         let matchedInOrder = 0;
 
@@ -893,8 +897,8 @@ class RecitationAnalyzer {
             const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
 
             // Search forward in transcript from current position
-            for (let i = transcriptPos; i < transcriptWords.length; i++) {
-                const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(transcriptWords[i]);
+            for (let i = transcriptPos; i < mergedTranscriptWords.length; i++) {
+                const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(mergedTranscriptWords[i]);
                 const similarity = levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord);
 
                 if (similarity >= 0.85) {  // Exact or very close match
@@ -919,6 +923,10 @@ class RecitationAnalyzer {
      * Calculate coverage - what % of verse words exist ANYWHERE in transcript
      */
     calculateCoverage(transcriptWords, verseWords) {
+        // CRITICAL: Merge common word splits BEFORE matching
+        // Fixes word boundary mismatches: "يا يها" → "يايها"
+        const mergedTranscriptWords = this.preprocessor.mergeCommonSplits(transcriptWords);
+
         let found = 0;
 
         for (const verseWord of verseWords) {
@@ -926,7 +934,7 @@ class RecitationAnalyzer {
             const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
 
             // Check if this verse word exists anywhere in transcript (order doesn't matter)
-            const exists = transcriptWords.some(tw => {
+            const exists = mergedTranscriptWords.some(tw => {
                 const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(tw);
                 return levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord) >= 0.85;
             });
