@@ -615,6 +615,7 @@ class RecitationAnalyzer {
 
             alignments.push({
                 ayah: verse.ayah,
+                text: verse.text,
                 accuracy: alignment.accuracy,
                 wordsMatched: alignment.matched + alignment.fuzzy,
                 wordCount: verseWords.length,
@@ -1686,9 +1687,50 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Generate repeat summary statistics
+     *
+     * @param {Object} repeatDetection - Repeat detection results
+     * @returns {Object} - Summary statistics
+     */
+    generateRepeatSummary(repeatDetection) {
+        if (!repeatDetection || !repeatDetection.repeats) {
+            return {
+                total: 0,
+                byType: {
+                    immediate: 0,
+                    section: 0,
+                    verse: 0
+                },
+                userCorrections: 0,
+                naturalQuranicRepetition: 0
+            };
+        }
+
+        const summary = {
+            total: repeatDetection.repeats.length,
+            byType: {
+                immediate: 0,
+                section: 0,
+                verse: 0
+            },
+            userCorrections: repeatDetection.repeats.length,
+            naturalQuranicRepetition: 0
+        };
+
+        // Count by type
+        for (const repeat of repeatDetection.repeats) {
+            if (repeat.type && summary.byType[repeat.type] !== undefined) {
+                summary.byType[repeat.type]++;
+            }
+        }
+
+        return summary;
+    }
+
+    /**
      * Phase 4: Generate comprehensive report
      */
-    generateReport(surahDetection, alignments, skipDetection, verseRange, metadata) {
+    generateReport(surahDetection, alignments, skipDetection, verseRange, metadata, preprocessedText = null, repeatDetection = null) {
         // Calculate overall accuracy
         const totalWords = alignments.reduce((sum, a) => sum + a.wordCount, 0);
         const matchedWords = alignments.reduce((sum, a) => sum + a.wordsMatched, 0);
@@ -1706,7 +1748,67 @@ class RecitationAnalyzer {
             });
         }
 
-        // Add partial verses with missing words
+        // Add word-level errors with enhanced feedback
+        for (const alignment of alignments) {
+            if (alignment.alignment && alignment.accuracy < 0.95) {
+                // Get normalized verse words for comparison
+                const verseText = alignment.text || '';
+                const verseWords = verseText.split(/\s+/).filter(w => w.length > 0);
+                const normalizedVerseWords = verseWords.map(w => this.preprocessor.normalizeForNgrams(w));
+
+                // Extract transcript words for this verse
+                let transcriptWords = [];
+
+                if (preprocessedText) {
+                    // Use the full transcript to get all words in the range
+                    const allTranscriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+
+                    // Find the min and max transcript positions used for this verse
+                    const positions = alignment.alignment
+                        .filter(d => d.transcriptPos !== undefined)
+                        .map(d => d.transcriptPos);
+
+                    if (positions.length > 0) {
+                        const minPos = Math.min(...positions);
+                        const maxPos = Math.max(...positions);
+
+                        // Extract all words from minPos to maxPos (inclusive)
+                        transcriptWords = allTranscriptWords.slice(minPos, maxPos + 1);
+                    }
+                } else {
+                    // Fallback: Extract from alignment details (old behavior)
+                    const heardWordsWithPos = alignment.alignment
+                        .filter(d => d.heard && d.transcriptPos !== undefined)
+                        .map(d => ({ word: d.heard, pos: d.transcriptPos }))
+                        .sort((a, b) => a.pos - b.pos);
+
+                    const uniquePositions = new Set();
+                    for (const item of heardWordsWithPos) {
+                        if (!uniquePositions.has(item.pos)) {
+                            uniquePositions.add(item.pos);
+                            transcriptWords.push(item.word);
+                        }
+                    }
+                }
+
+                // Enhance word-level errors (use normalized words for comparison)
+                const enhancedErrors = this.enhanceWordLevelErrors(
+                    alignment.alignment,
+                    normalizedVerseWords,
+                    transcriptWords
+                );
+
+                // Add enhanced errors to mistakes
+                enhancedErrors.forEach(error => {
+                    mistakes.push({
+                        ayah: alignment.ayah,
+                        ...error
+                    });
+                });
+            }
+        }
+
+        // Add partial verses with missing words (keep this for backward compatibility)
         for (const partial of skipDetection.partialVerses) {
             if (partial.missingWords.length > 0) {
                 mistakes.push({
@@ -1729,6 +1831,52 @@ class RecitationAnalyzer {
         if (overallAccuracy < 0.70) {
             recommendations.push('Overall accuracy is low - try reciting more slowly and clearly');
         }
+
+        // Generate mistake summary and categorized mistakes
+        const mistakeSummary = this.generateMistakeSummary(mistakes);
+
+        // Group mistakes by category for easier consumption
+        const mistakesByCategory = {};
+        for (const mistake of mistakes) {
+            const category = this.categorizeMistake(mistake);
+            if (!mistakesByCategory[category]) {
+                mistakesByCategory[category] = [];
+            }
+            mistakesByCategory[category].push(mistake);
+        }
+
+        // Generate repeat summary and add positive feedback
+        const repeatSummary = this.generateRepeatSummary(repeatDetection);
+        const repeats = repeatDetection?.repeats || [];
+
+        // Add positive feedback messages to repeats
+        const repeatsWithFeedback = repeats.map(repeat => {
+            let feedback = '';
+            if (repeat.type === 'immediate') {
+                feedback = '✅ Good! You corrected yourself - this shows careful recitation';
+            } else if (repeat.type === 'section') {
+                feedback = '✅ You repeated a section for practice - excellent learning approach';
+            } else if (repeat.type === 'verse') {
+                feedback = '✅ You practiced this verse multiple times - repetition aids memorization';
+            } else if (repeat.type === 'phrase') {
+                const words = repeat.words?.join(' ') || 'this phrase';
+                feedback = `✅ You repeated "${words}" - likely practicing this phrase`;
+            } else if (repeat.type === 'word') {
+                const words = repeat.words?.join(' ') || 'this word';
+                feedback = `✅ You repeated "${words}" for emphasis or correction`;
+            } else if (repeat.feedback) {
+                // If repeat already has feedback, keep it
+                feedback = repeat.feedback;
+            } else {
+                // Default feedback for unknown types
+                feedback = '✅ Repetition detected - this shows you are being careful with your recitation';
+            }
+
+            return {
+                ...repeat,
+                feedback
+            };
+        });
 
         return {
             success: true,
@@ -1759,6 +1907,10 @@ class RecitationAnalyzer {
                 text: a.text
             })),
             mistakes,
+            mistakeSummary,
+            mistakesByCategory,
+            repeats: repeatsWithFeedback,
+            repeatSummary,
             recommendations
         };
     }
@@ -1940,9 +2092,9 @@ class RecitationAnalyzer {
                 } else {
                     console.log(`\n❌ PASS 2 REJECTED - ${verification.reason}\n`);
 
-                    // Keep track of best candidate
-                    if (!bestVerification ||
-                        verification.scores.sequential > bestVerification.scores.sequential) {
+                    // Keep track of best candidate (only if scores are available)
+                    if (verification.scores && (!bestVerification ||
+                        verification.scores.sequential > (bestVerification.scores?.sequential || 0))) {
                         bestCandidate = {
                             method: 'ngram',
                             surah: ngramResult.primarySurah.name,
@@ -2021,6 +2173,413 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Categorize a mistake based on similarity and type
+     * Maps low-level error types to user-friendly categories
+     *
+     * @param {Object} mistake - The mistake object
+     * @returns {string} - Category name (pronunciation, partial_match, wrong_word, etc.)
+     */
+    categorizeMistake(mistake) {
+        // Direct type mappings
+        if (mistake.type === 'word_order') return 'word_order';
+        if (mistake.type === 'skipped_verse') return 'skipped_verse';
+        if (mistake.type === 'missing_words') return 'missing_words';
+
+        // Character-level errors map to pronunciation issues
+        if (['insertion', 'deletion', 'prefix_addition', 'suffix_addition',
+             'prefix_deletion', 'suffix_deletion'].includes(mistake.type)) {
+            return 'pronunciation';
+        }
+
+        // Substitution with minor severity = partial match
+        if (mistake.type === 'substitution' && mistake.severity === 'minor') {
+            return 'partial_match';
+        }
+
+        // Substitution with medium severity = pronunciation
+        if (mistake.type === 'substitution' && mistake.severity === 'medium') {
+            return 'pronunciation';
+        }
+
+        // Wrong word
+        if (mistake.type === 'wrong_word' || mistake.type === 'substitution') {
+            return 'wrong_word';
+        }
+
+        // Default
+        return 'other';
+    }
+
+    /**
+     * Generate mistake summary statistics grouped by category
+     *
+     * @param {Array} mistakes - Array of mistake objects
+     * @returns {Object} - Summary statistics by category
+     */
+    generateMistakeSummary(mistakes) {
+        const summary = {
+            total: mistakes.length,
+            byCategory: {
+                pronunciation: { count: 0, severity: 'minor', description: 'Minor pronunciation or character errors' },
+                partial_match: { count: 0, severity: 'medium', description: 'Partial word matches with some errors' },
+                wrong_word: { count: 0, severity: 'major', description: 'Completely wrong words' },
+                word_order: { count: 0, severity: 'high', description: 'Correct words but wrong sequence' },
+                missing_words: { count: 0, severity: 'medium', description: 'Words missing from recitation' },
+                skipped_verse: { count: 0, severity: 'major', description: 'Entire verses skipped' },
+                other: { count: 0, severity: 'low', description: 'Other issues' }
+            },
+            bySeverity: {
+                minor: 0,
+                medium: 0,
+                high: 0,
+                major: 0
+            }
+        };
+
+        for (const mistake of mistakes) {
+            const category = this.categorizeMistake(mistake);
+            summary.byCategory[category].count++;
+
+            // Count by severity
+            if (mistake.severity) {
+                summary.bySeverity[mistake.severity]++;
+            }
+        }
+
+        return summary;
+    }
+
+    /**
+     * Analyze the difference between two words to provide specific feedback
+     * Detects insertions, deletions, substitutions, and transpositions
+     *
+     * @param {string} expectedWord - The correct word from the verse
+     * @param {string} heardWord - The word from the transcript
+     * @returns {Object} - Analysis of the difference
+     */
+    analyzeWordDifference(expectedWord, heardWord) {
+        if (!heardWord || !expectedWord) {
+            return { type: 'missing', difference: null };
+        }
+
+        // Exact match
+        if (expectedWord === heardWord) {
+            return { type: 'perfect', difference: null };
+        }
+
+        // Check for insertion (heard has extra characters)
+        if (heardWord.length > expectedWord.length && heardWord.includes(expectedWord)) {
+            const extra = heardWord.replace(expectedWord, '');
+            return {
+                type: 'insertion',
+                difference: {
+                    extra: extra,
+                    message: `Added extra "${extra}" to ${expectedWord}`,
+                    severity: 'minor'
+                }
+            };
+        }
+
+        // Check for deletion (heard is missing characters)
+        if (expectedWord.length > heardWord.length && expectedWord.includes(heardWord)) {
+            const missing = expectedWord.replace(heardWord, '');
+            return {
+                type: 'deletion',
+                difference: {
+                    missing: missing,
+                    message: `Missing "${missing}" from ${expectedWord}`,
+                    severity: 'minor'
+                }
+            };
+        }
+
+        // Check for prefix/suffix differences (very common in Arabic)
+        if (heardWord.length === expectedWord.length + 1) {
+            // Likely prefix or suffix addition
+            if (heardWord.endsWith(expectedWord)) {
+                const prefix = heardWord[0];
+                return {
+                    type: 'prefix_addition',
+                    difference: {
+                        prefix: prefix,
+                        message: `Added prefix "${prefix}" to ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+            if (heardWord.startsWith(expectedWord)) {
+                const suffix = heardWord[heardWord.length - 1];
+                return {
+                    type: 'suffix_addition',
+                    difference: {
+                        suffix: suffix,
+                        message: `Added suffix "${suffix}" to ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+        }
+
+        if (expectedWord.length === heardWord.length + 1) {
+            // Likely prefix or suffix deletion
+            if (expectedWord.endsWith(heardWord)) {
+                const prefix = expectedWord[0];
+                return {
+                    type: 'prefix_deletion',
+                    difference: {
+                        prefix: prefix,
+                        message: `Missing prefix "${prefix}" from ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+            if (expectedWord.startsWith(heardWord)) {
+                const suffix = expectedWord[expectedWord.length - 1];
+                return {
+                    type: 'suffix_deletion',
+                    difference: {
+                        suffix: suffix,
+                        message: `Missing suffix "${suffix}" from ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+        }
+
+        // Check for character substitution (similar length)
+        if (Math.abs(expectedWord.length - heardWord.length) <= 2) {
+            return {
+                type: 'substitution',
+                difference: {
+                    expected: expectedWord,
+                    heard: heardWord,
+                    message: `Said "${heardWord}" instead of "${expectedWord}"`,
+                    severity: 'medium'
+                }
+            };
+        }
+
+        // Completely different words
+        return {
+            type: 'wrong_word',
+            difference: {
+                expected: expectedWord,
+                heard: heardWord,
+                message: `Wrong word: said "${heardWord}", should be "${expectedWord}"`,
+                severity: 'major'
+            }
+        };
+    }
+
+    /**
+     * Detect if words are present but in wrong order (jumbled)
+     * Compares word sets to see if all words exist but sequence is wrong
+     *
+     * @param {Array<string>} transcriptWords - Words from transcript
+     * @param {Array<string>} verseWords - Expected words from verse
+     * @param {number} accuracy - Current alignment accuracy
+     * @returns {Object|null} - Word order issue if detected, null otherwise
+     */
+    detectWordOrderIssue(transcriptWords, verseWords, accuracy) {
+        // Only check if accuracy is unexpectedly low but word counts are similar
+        if (accuracy >= 0.90 || Math.abs(transcriptWords.length - verseWords.length) > 2) {
+            return null;
+        }
+
+        // Create word frequency maps (to handle repeated words)
+        const transcriptWordSet = new Set(transcriptWords);
+        const verseWordSet = new Set(verseWords);
+
+        // Count how many verse words exist in transcript (regardless of order)
+        let matchingWords = 0;
+        verseWords.forEach(word => {
+            if (transcriptWordSet.has(word)) {
+                matchingWords++;
+            }
+        });
+
+        // If most words (>80%) exist but accuracy is low, likely word order issue
+        const wordExistenceRatio = matchingWords / verseWords.length;
+
+        if (wordExistenceRatio >= 0.80 && accuracy < 0.90) {
+            return {
+                type: 'word_order',
+                matchingWords: matchingWords,
+                totalWords: verseWords.length,
+                wordExistenceRatio: wordExistenceRatio,
+                sequentialAccuracy: accuracy,
+                message: `Most words are correct (${matchingWords}/${verseWords.length}), but they appear to be in the wrong order`,
+                suggestion: 'Check the sequence of words in this verse',
+                severity: 'high'
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Enhance word-level error reporting with specific feedback
+     * Analyzes alignment details to provide clear, actionable error messages
+     *
+     * @param {Array} alignmentDetails - Word-by-word alignment details
+     * @param {Array<string>} verseWords - Expected words
+     * @param {Array<string>} transcriptWords - Heard words
+     * @returns {Array} - Enhanced error list with specific messages
+     */
+    enhanceWordLevelErrors(alignmentDetails, verseWords, transcriptWords) {
+        const enhancedErrors = [];
+
+        // First check for word order issue
+        const accuracy = alignmentDetails.filter(d => d.matched).length / verseWords.length;
+        const wordOrderIssue = this.detectWordOrderIssue(transcriptWords, verseWords, accuracy);
+
+        if (wordOrderIssue) {
+            enhancedErrors.push(wordOrderIssue);
+            // If it's a word order issue, don't report individual word errors
+            // as they would be misleading
+            return enhancedErrors;
+        }
+
+        // Analyze individual word differences
+        alignmentDetails.forEach((detail, index) => {
+            if (!detail.matched && detail.expected) {
+                const analysis = this.analyzeWordDifference(
+                    detail.expected,
+                    detail.heard || ''
+                );
+
+                if (analysis.difference) {
+                    enhancedErrors.push({
+                        position: index,
+                        expected: detail.expected,
+                        heard: detail.heard || null,
+                        ...analysis.difference
+                    });
+                }
+            }
+        });
+
+        return enhancedErrors;
+    }
+
+    /**
+     * Detect verse order issues
+     * Identifies out-of-order verses, wrong verses, skipped verses, and mixed surahs
+     *
+     * @param {Array} alignments - Alignment results from verse analysis
+     * @param {Object} verseRange - Detected verse range {startVerse, endVerse}
+     * @param {number} surahId - Primary surah ID
+     * @returns {Array} - Array of verse order issues
+     */
+    detectVerseOrderIssues(alignments, verseRange, surahId) {
+        const issues = [];
+
+        // Filter to verses that were actually recited (accuracy >= 40%)
+        const recitedVerses = alignments.filter(v => v.accuracy >= 0.40);
+
+        if (recitedVerses.length === 0) {
+            return issues; // No verses detected
+        }
+
+        // Sort by verse number for gap detection
+        const sortedVerses = [...recitedVerses].sort((a, b) => a.ayah - b.ayah);
+        const verseNumbers = sortedVerses.map(v => v.ayah);
+        const expectedStart = verseRange.startVerse;
+        const expectedEnd = verseRange.endVerse;
+
+        // Check 1: Detect gaps (skipped verses) in the expected range
+        for (let i = 0; i < verseNumbers.length - 1; i++) {
+            const current = verseNumbers[i];
+            const next = verseNumbers[i + 1];
+
+            // Check for gaps (skipped verses)
+            const gap = next - current;
+            if (gap > 1) {
+                const skippedVerses = [];
+                for (let v = current + 1; v < next; v++) {
+                    // Only report if it's within the expected range
+                    if (v >= expectedStart && v <= expectedEnd) {
+                        skippedVerses.push(v);
+                    }
+                }
+
+                if (skippedVerses.length > 0) {
+                    issues.push({
+                        type: 'skipped_verses',
+                        current: current,
+                        next: next,
+                        skipped: skippedVerses,
+                        severity: 'low',
+                        message: `Skipped verse(s) ${skippedVerses.join(', ')} between verse ${current} and ${next}`,
+                        suggestion: skippedVerses.length === 1
+                            ? `Make sure to include verse ${skippedVerses[0]}`
+                            : `Make sure to include verses ${skippedVerses.join(', ')}`
+                    });
+                }
+            }
+        }
+
+        // Check 3: Wrong verse recited (high accuracy but wrong verse number)
+        // This checks if user recited a completely different verse that matches well
+        for (const alignment of recitedVerses) {
+            // If this verse has high accuracy but is far from expected range
+            if (alignment.accuracy >= 0.70) {
+                const verseNum = alignment.ayah;
+                const distanceFromRange = Math.min(
+                    Math.abs(verseNum - expectedStart),
+                    Math.abs(verseNum - expectedEnd)
+                );
+
+                // If verse is more than 10 verses away from expected range, flag it
+                if (distanceFromRange > 10 && verseNum < expectedStart - 5 || verseNum > expectedEnd + 5) {
+                    issues.push({
+                        type: 'unexpected_verse',
+                        verse: verseNum,
+                        expectedRange: `${expectedStart}-${expectedEnd}`,
+                        accuracy: alignment.accuracy,
+                        severity: 'high',
+                        message: `Verse ${verseNum} recited, but expected range is ${expectedStart}-${expectedEnd}`,
+                        suggestion: `Verify you're reciting the correct section of the surah`
+                    });
+                }
+            }
+        }
+
+        // Check 4: Verses from different surah (if surah info available in alignments)
+        if (alignments.some(v => v.surah)) {
+            for (const alignment of recitedVerses) {
+                if (alignment.surah && alignment.surah !== surahId) {
+                    const wrongSurahName = this.quranService.quranData.find(v =>
+                        v.surah === alignment.surah
+                    )?.surahName || 'Unknown';
+
+                    const correctSurahName = this.quranService.quranData.find(v =>
+                        v.surah === surahId
+                    )?.surahName || 'Unknown';
+
+                    issues.push({
+                        type: 'different_surah',
+                        verse: alignment.ayah,
+                        expectedSurah: {
+                            id: surahId,
+                            name: correctSurahName
+                        },
+                        actualSurah: {
+                            id: alignment.surah,
+                            name: wrongSurahName
+                        },
+                        severity: 'high',
+                        message: `Verse ${alignment.ayah} is from ${wrongSurahName}, but expected ${correctSurahName}`,
+                        suggestion: `Focus on one surah at a time to avoid mixing`
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
      * Perform detailed analysis after position is verified
      */
     async performDetailedAnalysis(preprocessedText, surahId, startVerse, endVerse, metadata, basicRepeatDetection, originalTranscript) {
@@ -2084,6 +2643,22 @@ class RecitationAnalyzer {
         // Use the verse-aware results as final repeat detection
         const repeatDetection = verseAwareDetection;
 
+        // Phase 2.7: Detect verse order issues
+        console.log('\n═══════════════════════════════════════════════════════');
+        console.log('📍 VERSE ORDER DETECTION');
+        console.log('═══════════════════════════════════════════════════════\n');
+
+        const verseOrderIssues = this.detectVerseOrderIssues(alignments, verseRange, surahId);
+
+        if (verseOrderIssues.length > 0) {
+            console.log(`   ⚠️  Found ${verseOrderIssues.length} verse order issue(s):`);
+            verseOrderIssues.forEach((issue, idx) => {
+                console.log(`     ${idx + 1}. ${issue.type}: ${issue.message}`);
+            });
+        } else {
+            console.log('   ✅ All verses in correct order');
+        }
+
         // Phase 3: Detect skips
         const skipDetection = this.detectSkips(alignments);
 
@@ -2108,7 +2683,9 @@ class RecitationAnalyzer {
                 ...metadata,
                 totalProcessingTime,
                 verificationScores: metadata.verificationScores
-            }
+            },
+            preprocessedText,
+            repeatDetection
         );
 
         // Add confidence and verification scores to report
@@ -2120,6 +2697,11 @@ class RecitationAnalyzer {
         if (repeatDetection.repeats.length > 0) {
             report.repeats = repeatDetection.repeats;
             report.repeatStats = repeatDetection.stats;
+        }
+
+        // Add verse order issues if any
+        if (verseOrderIssues.length > 0) {
+            report.verseOrderIssues = verseOrderIssues;
         }
 
         return report;
