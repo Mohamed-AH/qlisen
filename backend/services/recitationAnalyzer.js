@@ -902,6 +902,7 @@ class RecitationAnalyzer {
         let transcriptPos = 0;
         let matchScore = 0;  // Changed from matchedInOrder - now uses weighted scoring
         let debugWordIndex = 0;
+        let validWords = 0;  // Count of non-empty verse words
         let perfectMatches = 0;
         let partialMatches = 0;
         let failedMatches = 0;
@@ -911,12 +912,21 @@ class RecitationAnalyzer {
         console.log(`   Showing first 10 comparisons + ALL failed matches (<70%):\n`);
 
         for (const verseWord of verseWords) {
-            let bestSimilarity = 0;
-            let bestPos = -1;
-
             // CRITICAL: Apply aggressive normalization before comparison
             // This handles Whisper transcription differences (يٓايها → يايها)
             const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
+
+            // SKIP: Empty Unicode marks (decorative marks like ۚ, ۖ that normalize to "")
+            // These are sajdah/pause marks that Whisper correctly doesn't transcribe
+            if (normalizedVerseWord.length === 0) {
+                debugWordIndex++;
+                continue;
+            }
+
+            validWords++;  // Count valid words for accurate percentage calculation
+
+            let bestSimilarity = 0;
+            let bestPos = -1;
 
             // Search forward in transcript from current position
             for (let i = transcriptPos; i < mergedTranscriptWords.length; i++) {
@@ -971,15 +981,20 @@ class RecitationAnalyzer {
             debugWordIndex++;
         }
 
-        const avgScore = verseWords.length > 0 ? matchScore / verseWords.length : 0;
+        const avgScore = validWords > 0 ? matchScore / validWords : 0;
+        const skippedMarks = verseWords.length - validWords;
+
         console.log(`\n📊 Sequential match summary:`);
-        console.log(`   Perfect matches (95%+): ${perfectMatches}/${verseWords.length}`);
-        console.log(`   Partial matches (70-95%): ${partialMatches}/${verseWords.length}`);
-        console.log(`   Failed matches (<70%): ${failedMatches}/${verseWords.length}`);
+        console.log(`   Perfect matches (95%+): ${perfectMatches}/${validWords}`);
+        console.log(`   Partial matches (70-95%): ${partialMatches}/${validWords}`);
+        console.log(`   Failed matches (<70%): ${failedMatches}/${validWords}`);
+        if (skippedMarks > 0) {
+            console.log(`   Skipped Unicode marks: ${skippedMarks} (decorative marks like ۚ, ۖ)`);
+        }
         console.log(`   Weighted average: ${(avgScore * 100).toFixed(1)}%\n`);
 
-        // Return weighted average instead of binary count
-        return verseWords.length > 0 ? matchScore / verseWords.length : 0;
+        // Return weighted average based on valid words only
+        return validWords > 0 ? matchScore / validWords : 0;
     }
 
     /**
@@ -991,10 +1006,19 @@ class RecitationAnalyzer {
         const mergedTranscriptWords = this.preprocessor.mergeCommonSplits(transcriptWords);
 
         let coverageScore = 0;  // Changed to weighted scoring
+        let validWords = 0;  // Count of non-empty verse words
 
         for (const verseWord of verseWords) {
             // CRITICAL: Apply aggressive normalization before comparison
             const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
+
+            // SKIP: Empty Unicode marks (decorative marks like ۚ, ۖ that normalize to "")
+            // These are sajdah/pause marks that Whisper correctly doesn't transcribe
+            if (normalizedVerseWord.length === 0) {
+                continue;
+            }
+
+            validWords++;  // Count valid words for accurate percentage calculation
 
             // Find best match anywhere in transcript (order doesn't matter)
             let bestSimilarity = 0;
@@ -1014,7 +1038,7 @@ class RecitationAnalyzer {
             }
         }
 
-        return verseWords.length > 0 ? coverageScore / verseWords.length : 0;
+        return validWords > 0 ? coverageScore / validWords : 0;
     }
 
     /**
