@@ -774,6 +774,231 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Map transcript word positions to verse numbers based on alignment results
+     * Uses alignment data to determine which verse each word belongs to
+     *
+     * @param {Array} alignments - Alignment results from alignToVerses/alignToSpecificVerses
+     * @param {number} transcriptWordCount - Total words in transcript
+     * @returns {Array<number>} - Array where index = word position, value = verse number (ayah)
+     */
+    mapWordsToVerses(alignments, transcriptWordCount) {
+        const wordToVerse = new Array(transcriptWordCount).fill(null);
+
+        // Filter to verses that were actually recited (accuracy >= 40%)
+        const recitedVerses = alignments.filter(v => v.accuracy >= 0.40);
+
+        if (recitedVerses.length === 0) {
+            return wordToVerse; // All nulls if no verses detected
+        }
+
+        // Sort by verse number
+        recitedVerses.sort((a, b) => a.ayah - b.ayah);
+
+        // Distribute transcript words proportionally across recited verses
+        let wordPos = 0;
+
+        for (let i = 0; i < recitedVerses.length; i++) {
+            const verse = recitedVerses[i];
+            const verseWordCount = verse.wordCount;
+
+            // Estimate how many transcript words belong to this verse
+            // Use verse word count as approximation (accounting for potential mistakes)
+            const estimatedTranscriptWords = Math.ceil(verseWordCount * 1.2); // Allow 20% extra for mistakes
+
+            // Assign this verse number to the next N transcript words
+            const wordsToAssign = Math.min(estimatedTranscriptWords, transcriptWordCount - wordPos);
+
+            for (let j = 0; j < wordsToAssign; j++) {
+                if (wordPos < transcriptWordCount) {
+                    wordToVerse[wordPos] = verse.ayah;
+                    wordPos++;
+                }
+            }
+        }
+
+        // Fill any remaining words with the last verse
+        const lastVerse = recitedVerses[recitedVerses.length - 1];
+        for (let i = wordPos; i < transcriptWordCount; i++) {
+            wordToVerse[i] = lastVerse.ayah;
+        }
+
+        return wordToVerse;
+    }
+
+    /**
+     * Check if a repeated sequence is natural Quranic repetition
+     * Verifies if the sequence appears naturally in multiple verses
+     *
+     * @param {Array<string>} words - The repeated word sequence
+     * @param {number} firstVerse - Verse number of first occurrence
+     * @param {number} secondVerse - Verse number of second occurrence
+     * @param {number} surahId - Surah ID
+     * @param {number} firstPos - Position of first occurrence in transcript
+     * @param {number} secondPos - Position of second occurrence in transcript
+     * @returns {boolean} - True if this is natural Quranic repetition
+     */
+    isNaturalQuranRepetition(words, firstVerse, secondVerse, surahId, firstPos, secondPos) {
+        // If both occurrences are in the same verse, it's NOT natural (user correction)
+        if (firstVerse === secondVerse) {
+            return false;
+        }
+
+        // If occurrences are immediately consecutive or very close together,
+        // it's likely a user stutter/correction, not natural verse spanning
+        const wordDistance = secondPos - (firstPos + words.length);
+        if (wordDistance <= 2) {  // Allow max 2 words between repetitions for natural
+            return false;  // Too close together = user correction
+        }
+
+        // Get the actual verse texts from Quran
+        const verse1Data = this.quranService.quranData.find(v =>
+            v.surah === surahId && v.ayah === firstVerse
+        );
+        const verse2Data = this.quranService.quranData.find(v =>
+            v.surah === surahId && v.ayah === secondVerse
+        );
+
+        if (!verse1Data || !verse2Data) {
+            return false; // Can't verify, assume not natural
+        }
+
+        // Join the repeated words into a sequence
+        const sequence = words.join(' ');
+
+        // Check if this sequence appears in both verse texts
+        const inVerse1 = verse1Data.textNormalized.includes(sequence);
+        const inVerse2 = verse2Data.textNormalized.includes(sequence);
+
+        // If the sequence naturally appears in both verses, it's natural Quranic repetition
+        return inVerse1 && inVerse2;
+    }
+
+    /**
+     * Detect repeats with verse boundary awareness
+     * Distinguishes between user corrections and natural Quranic repetition
+     *
+     * @param {Array<string>} transcriptWords - Transcript words
+     * @param {Array} alignments - Alignment results (optional, for verse context)
+     * @param {number} surahId - Surah ID (optional, for verse verification)
+     * @returns {Object} - { repeats, cleanedWords, stats }
+     */
+    detectRepeatsWithVerseContext(transcriptWords, alignments = null, surahId = null) {
+        const repeats = [];
+        const cleanedWords = [];
+        let i = 0;
+
+        // Build word-to-verse mapping if we have alignment data
+        const wordToVerse = alignments ? this.mapWordsToVerses(alignments, transcriptWords.length) : null;
+
+        while (i < transcriptWords.length) {
+            let repeatFound = false;
+
+            // Try to find repeats of different lengths (longest first)
+            for (let seqLength = Math.min(10, Math.floor((transcriptWords.length - i) / 2)); seqLength >= 2; seqLength--) {
+                const currentSeq = transcriptWords.slice(i, i + seqLength);
+                const nextSeq = transcriptWords.slice(i + seqLength, i + seqLength * 2);
+
+                if (currentSeq.length === nextSeq.length &&
+                    currentSeq.every((word, idx) => word === nextSeq[idx])) {
+
+                    // Found a potential repeat
+                    // Check if this is natural Quranic repetition
+                    let isNatural = false;
+
+                    if (wordToVerse && surahId) {
+                        const firstVerse = wordToVerse[i];
+                        const secondVerse = wordToVerse[i + seqLength];
+
+                        if (firstVerse !== null && secondVerse !== null) {
+                            isNatural = this.isNaturalQuranRepetition(
+                                currentSeq,
+                                firstVerse,
+                                secondVerse,
+                                surahId,
+                                i,  // first position
+                                i + seqLength  // second position
+                            );
+                        }
+                    }
+
+                    if (!isNatural) {
+                        // User correction - record it
+                        const repeatType = this.classifyRepeat(currentSeq.length);
+                        repeats.push({
+                            type: repeatType,
+                            words: currentSeq,
+                            wordCount: currentSeq.length,
+                            position: i,
+                            repetitions: 2,
+                            feedback: this.getRepeatFeedback(repeatType, currentSeq)
+                        });
+                    }
+
+                    // Add to cleaned words (keep only one occurrence)
+                    cleanedWords.push(...currentSeq);
+                    i += seqLength * 2;
+                    repeatFound = true;
+                    break;
+                }
+            }
+
+            // Check for single word repeat
+            if (!repeatFound && i + 1 < transcriptWords.length &&
+                transcriptWords[i] === transcriptWords[i + 1]) {
+
+                // Check if this is natural Quranic repetition
+                let isNatural = false;
+
+                if (wordToVerse && surahId) {
+                    const firstVerse = wordToVerse[i];
+                    const secondVerse = wordToVerse[i + 1];
+
+                    if (firstVerse !== null && secondVerse !== null) {
+                        isNatural = this.isNaturalQuranRepetition(
+                            [transcriptWords[i]],
+                            firstVerse,
+                            secondVerse,
+                            surahId,
+                            i,  // first position
+                            i + 1  // second position
+                        );
+                    }
+                }
+
+                if (!isNatural) {
+                    // User correction
+                    repeats.push({
+                        type: 'single_word',
+                        words: [transcriptWords[i]],
+                        wordCount: 1,
+                        position: i,
+                        repetitions: 2,
+                        feedback: `✅ Good! You repeated "${transcriptWords[i]}" - shows careful recitation`
+                    });
+                }
+
+                cleanedWords.push(transcriptWords[i]);
+                i += 2;
+                repeatFound = true;
+            }
+
+            if (!repeatFound) {
+                cleanedWords.push(transcriptWords[i]);
+                i++;
+            }
+        }
+
+        const stats = {
+            originalWordCount: transcriptWords.length,
+            cleanedWordCount: cleanedWords.length,
+            wordsRemoved: transcriptWords.length - cleanedWords.length,
+            repeatsDetected: repeats.length
+        };
+
+        return { repeats, cleanedWords, stats };
+    }
+
+    /**
      * Phase 2: Align transcript to verses (simplified alignment for now)
      */
     async alignToVerses(preprocessedText, surahId) {
@@ -1586,14 +1811,22 @@ class RecitationAnalyzer {
                 };
             }
 
-            // Detect and remove repeated sequences
+            // Stage 1: Basic repeat detection (for surah detection)
+            // This removes obvious repeats to help with surah identification
             console.log('\n═══════════════════════════════════════════════════════');
-            const transcriptWords = preprocessed.normalized.split(/\s+/).filter(w => w.length > 0);
-            const repeatDetection = this.detectRepeats(transcriptWords);
+            console.log('🔄 STAGE 1: Basic Repeat Detection');
+            console.log('═══════════════════════════════════════════════════════\n');
 
-            // Use cleaned transcript for analysis (removes repeats)
-            const analyzableText = repeatDetection.cleanedWords.join(' ');
-            const analyzableWordCount = repeatDetection.cleanedWords.length;
+            const transcriptWords = preprocessed.normalized.split(/\s+/).filter(w => w.length > 0);
+            const basicRepeatDetection = this.detectRepeats(transcriptWords);
+
+            console.log(`   Original words: ${basicRepeatDetection.stats.originalWordCount}`);
+            console.log(`   Potential repeats found: ${basicRepeatDetection.stats.repeatsDetected}`);
+            console.log(`   Cleaned words: ${basicRepeatDetection.stats.cleanedWordCount}`);
+
+            // Use cleaned text for surah detection and alignment
+            const analyzableText = basicRepeatDetection.cleanedWords.join(' ');
+            const analyzableWordCount = basicRepeatDetection.cleanedWords.length;
 
             console.log('\n═══════════════════════════════════════════════════════');
             console.log('🔍 MULTI-PASS DETECTION WITH VERIFICATION');
@@ -1638,7 +1871,8 @@ class RecitationAnalyzer {
                             verificationScores: verification.scores,
                             pipelineStart
                         },
-                        repeatDetection
+                        basicRepeatDetection,
+                        preprocessed.normalized
                     );
                 } else {
                     console.log(`\n❌ PASS 1 REJECTED - ${verification.reason}\n`);
@@ -1700,7 +1934,8 @@ class RecitationAnalyzer {
                             verificationScores: verification.scores,
                             pipelineStart
                         },
-                        repeatDetection
+                        basicRepeatDetection,
+                        preprocessed.normalized
                     );
                 } else {
                     console.log(`\n❌ PASS 2 REJECTED - ${verification.reason}\n`);
@@ -1733,7 +1968,8 @@ class RecitationAnalyzer {
                             verificationScores: verification.scores,
                             pipelineStart
                         },
-                        repeatDetection
+                        basicRepeatDetection,
+                        preprocessed.normalized
                     );
                 }
             } else {
@@ -1787,7 +2023,7 @@ class RecitationAnalyzer {
     /**
      * Perform detailed analysis after position is verified
      */
-    async performDetailedAnalysis(preprocessedText, surahId, startVerse, endVerse, metadata, repeatDetection = null) {
+    async performDetailedAnalysis(preprocessedText, surahId, startVerse, endVerse, metadata, basicRepeatDetection, originalTranscript) {
         console.log('═══════════════════════════════════════════════════════');
         console.log('📊 DETAILED ANALYSIS (Position Verified)');
         console.log('═══════════════════════════════════════════════════════\n');
@@ -1812,6 +2048,41 @@ class RecitationAnalyzer {
             verseRange = result.verseRange;
             alignTime = result.processingTime;
         }
+
+        // Stage 2: Verse-aware repeat verification
+        // Re-check the detected repeats using verse context to filter out natural Quranic repetition
+        console.log('\n═══════════════════════════════════════════════════════');
+        console.log('🔄 STAGE 2: Verse-Aware Repeat Verification');
+        console.log('═══════════════════════════════════════════════════════\n');
+
+        console.log(`   Stage 1 found ${basicRepeatDetection.repeats.length} potential repeat(s)`);
+
+        // Run verse-aware detection on ORIGINAL transcript
+        const originalWords = originalTranscript.split(/\s+/).filter(w => w.length > 0);
+        const verseAwareDetection = this.detectRepeatsWithVerseContext(
+            originalWords,
+            alignments,
+            surahId
+        );
+
+        console.log(`   After verse-aware verification: ${verseAwareDetection.repeats.length} actual user correction(s)`);
+
+        if (basicRepeatDetection.repeats.length > verseAwareDetection.repeats.length) {
+            const filtered = basicRepeatDetection.repeats.length - verseAwareDetection.repeats.length;
+            console.log(`   ✅ Filtered out ${filtered} natural Quranic repetition(s)`);
+        }
+
+        if (verseAwareDetection.repeats.length > 0) {
+            console.log('\n   User corrections detected:');
+            verseAwareDetection.repeats.forEach((repeat, idx) => {
+                console.log(`     ${idx + 1}. ${repeat.type}: "${repeat.words.join(' ')}" (${repeat.wordCount} words)`);
+            });
+        } else {
+            console.log('   ✅ No user corrections - all repetitions are natural Quranic structure');
+        }
+
+        // Use the verse-aware results as final repeat detection
+        const repeatDetection = verseAwareDetection;
 
         // Phase 3: Detect skips
         const skipDetection = this.detectSkips(alignments);
@@ -1845,8 +2116,8 @@ class RecitationAnalyzer {
         report.verificationScores = metadata.verificationScores;
         report.detectionMethod = metadata.detectionMethod;
 
-        // Add repeat detection results if available
-        if (repeatDetection && repeatDetection.repeats.length > 0) {
+        // Add repeat detection results (always available now)
+        if (repeatDetection.repeats.length > 0) {
             report.repeats = repeatDetection.repeats;
             report.repeatStats = repeatDetection.stats;
         }
