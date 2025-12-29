@@ -842,8 +842,8 @@ class RecitationAnalyzer {
                     transcriptPos: bestPos
                 });
                 transcriptPos = bestPos + 1; // Move past this match
-            } else if (bestSimilarity >= 0.75) {
-                // Fuzzy match
+            } else if (bestSimilarity >= 0.70) {
+                // Fuzzy match (lowered from 0.75 to 0.70 for Whisper tolerance)
                 fuzzy++;
                 matched++;
                 details.push({
@@ -894,11 +894,12 @@ class RecitationAnalyzer {
         }
 
         let transcriptPos = 0;
-        let matchedInOrder = 0;
+        let matchScore = 0;  // Changed from matchedInOrder - now uses weighted scoring
         let debugWordIndex = 0;
 
         for (const verseWord of verseWords) {
-            let found = false;
+            let bestSimilarity = 0;
+            let bestPos = -1;
 
             // CRITICAL: Apply aggressive normalization before comparison
             // This handles Whisper transcription differences (يٓايها → يايها)
@@ -914,24 +915,42 @@ class RecitationAnalyzer {
                     console.log(`   [${debugWordIndex}] Verse: "${verseWord}" (norm: "${normalizedVerseWord}") vs Transcript: "${mergedTranscriptWords[i]}" (norm: "${normalizedTranscriptWord}") = ${(similarity * 100).toFixed(1)}%`);
                 }
 
-                if (similarity >= 0.85) {  // Exact or very close match
-                    matchedInOrder++;
-                    transcriptPos = i + 1;  // Move forward past this match
-                    found = true;
+                // Track best match found
+                if (similarity > bestSimilarity) {
+                    bestSimilarity = similarity;
+                    bestPos = i;
+                }
+
+                // If excellent match (95%+), stop searching
+                if (similarity >= 0.95) {
                     break;
                 }
             }
 
-            debugWordIndex++;
+            // WEIGHTED SCORING: Give partial credit for near-misses
+            // This is more honest than binary pass/fail
+            // Examples:
+            //   "أيديهم" vs "أيتيهم" = 83% → 0.83 credit (not 0!)
+            //   "قل" vs "قل" = 100% → 1.0 credit
+            //   "االموت" vs "الموت" = 90% → 0.90 credit
+            if (bestSimilarity >= 0.70) {  // Minimum 70% threshold
+                matchScore += bestSimilarity;  // Add weighted credit
+                transcriptPos = bestPos + 1;  // Move forward past this match
 
-            // If not found in order, we've broken the sequence
-            if (!found) {
-                // Don't break - continue checking remaining words
-                // This gives us a ratio of how many words matched in order
+                // DEBUG: Log weighted matches
+                if (debugWordIndex < 5) {
+                    console.log(`      → Matched with ${(bestSimilarity * 100).toFixed(1)}% credit`);
+                }
+            } else {
+                // No match found (below 70% threshold)
+                // Don't advance position - continue from same spot
             }
+
+            debugWordIndex++;
         }
 
-        return verseWords.length > 0 ? matchedInOrder / verseWords.length : 0;
+        // Return weighted average instead of binary count
+        return verseWords.length > 0 ? matchScore / verseWords.length : 0;
     }
 
     /**
@@ -942,22 +961,31 @@ class RecitationAnalyzer {
         // Fixes word boundary mismatches: "يا يها" → "يايها"
         const mergedTranscriptWords = this.preprocessor.mergeCommonSplits(transcriptWords);
 
-        let found = 0;
+        let coverageScore = 0;  // Changed to weighted scoring
 
         for (const verseWord of verseWords) {
             // CRITICAL: Apply aggressive normalization before comparison
             const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
 
-            // Check if this verse word exists anywhere in transcript (order doesn't matter)
-            const exists = mergedTranscriptWords.some(tw => {
+            // Find best match anywhere in transcript (order doesn't matter)
+            let bestSimilarity = 0;
+            for (const tw of mergedTranscriptWords) {
                 const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(tw);
-                return levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord) >= 0.85;
-            });
+                const similarity = levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord);
+                if (similarity > bestSimilarity) {
+                    bestSimilarity = similarity;
+                }
+                // Early exit if perfect match found
+                if (similarity >= 0.99) break;
+            }
 
-            if (exists) found++;
+            // WEIGHTED SCORING: Give partial credit for near-misses
+            if (bestSimilarity >= 0.70) {  // Minimum 70% threshold
+                coverageScore += bestSimilarity;  // Add weighted credit
+            }
         }
 
-        return verseWords.length > 0 ? found / verseWords.length : 0;
+        return verseWords.length > 0 ? coverageScore / verseWords.length : 0;
     }
 
     /**
