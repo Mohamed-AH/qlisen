@@ -86,6 +86,17 @@ async function test() {
     console.log('Result:', JSON.stringify(result, null, 2));
     console.log('\n');
 
+    // Test 5: Al-Jumu'ah verses 6-11 (User's actual test case)
+    console.log('═══════════════════════════════════════════════════');
+    console.log('Test 5: Al-Jumu\'ah verses 6-11');
+    console.log('═══════════════════════════════════════════════════\n');
+
+    const jumah6to11 = `قل يا يها الذين هادوا إن زعمتم أنكم أولياء لله من دون الناس فتمنّو االموت إن كنتم صادقين`;
+
+    result = await analyzer.analyzeFull(jumah6to11, { duration: 20000 });
+    console.log('Result:', JSON.stringify(result, null, 2));
+    console.log('\n');
+
     console.log('✅ All tests completed!');
     process.exit(0);
 }
