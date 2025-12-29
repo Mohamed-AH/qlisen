@@ -1095,7 +1095,8 @@ class RecitationAnalyzer {
 
     /**
      * Strict position verification using sequence matching
-     * Uses ENTIRE transcript to verify candidate position
+     * SMART ALIGNMENT: Detects and handles Skip/Misplaced/Repeated scenarios
+     * Only verifies against PRESENT verses to avoid misalignment pollution
      */
     verifyPositionStrict(fullTranscript, candidateVerses) {
         if (!candidateVerses || candidateVerses.length === 0) {
@@ -1109,31 +1110,93 @@ class RecitationAnalyzer {
         // Extract words from full transcript
         const transcriptWords = fullTranscript.split(/\s+/).filter(w => w.length > 0);
 
-        // Extract words from candidate verses
-        const verseWords = candidateVerses
-            .map(v => v.textNormalized || v.text)
-            .join(' ')
-            .split(/\s+/)
-            .filter(w => w.length > 0);
-
-        if (transcriptWords.length === 0 || verseWords.length === 0) {
+        if (transcriptWords.length === 0) {
             return {
                 verified: false,
                 confidence: 'very_low',
-                reason: 'Empty transcript or verses'
+                reason: 'Empty transcript'
             };
         }
 
-        // Calculate all three metrics
-        const sequential = this.calculateSequentialMatch(transcriptWords, verseWords);
-        const coverage = this.calculateCoverage(transcriptWords, verseWords);
-        const countRatio = transcriptWords.length / verseWords.length;
+        console.log(`\n🧠 SMART ALIGNMENT: Verse-Level Pre-Analysis`);
+        console.log('─'.repeat(55));
+
+        // STEP 1: Analyze each verse individually to detect presence
+        const verseAnalysis = [];
+        for (const verse of candidateVerses) {
+            const verseWords = (verse.textNormalized || verse.text).split(/\s+/).filter(w => w.length > 0);
+            const alignment = this.alignWords(transcriptWords, verseWords);
+
+            verseAnalysis.push({
+                ayah: verse.ayah,
+                accuracy: alignment.accuracy,
+                wordCount: verseWords.length,
+                wordsMatched: alignment.matched,
+                words: verseWords,
+                status: alignment.accuracy >= 0.40 ? 'present' : 'skipped'
+            });
+        }
+
+        // Log verse-level analysis
+        for (const v of verseAnalysis) {
+            const status = v.status === 'present' ? '✅' : '❌ SKIP';
+            console.log(`   Verse ${v.ayah}: ${(v.accuracy * 100).toFixed(1)}% (${v.wordsMatched}/${v.wordCount} words) ${status}`);
+        }
+
+        // STEP 2: Filter to present verses only (Skip scenario)
+        const presentVerses = verseAnalysis.filter(v => v.status === 'present');
+        const skippedVerses = verseAnalysis.filter(v => v.status === 'skipped');
+
+        console.log(`\n🔧 Smart Filtering:`);
+        console.log(`   Total verses in range: ${candidateVerses.length}`);
+        console.log(`   Present verses (≥40%): ${presentVerses.length} [${presentVerses.map(v => v.ayah).join(', ')}]`);
+        console.log(`   Skipped verses (<40%): ${skippedVerses.length}${skippedVerses.length > 0 ? ` [${skippedVerses.map(v => v.ayah).join(', ')}]` : ''}`);
+
+        if (presentVerses.length === 0) {
+            return {
+                verified: false,
+                confidence: 'very_low',
+                reason: 'No verses present (all below 40% accuracy)'
+            };
+        }
+
+        // STEP 3: Build filtered word array (only present verses)
+        const expectedWords = [];
+        const verseBoundaries = []; // Track which verse each word belongs to
+        let totalExpectedWords = 0;
+
+        for (const verse of presentVerses) {
+            for (const word of verse.words) {
+                expectedWords.push(word);
+                verseBoundaries.push(verse.ayah);
+            }
+            totalExpectedWords += verse.wordCount;
+        }
+
+        const totalAllWords = candidateVerses.reduce((sum, v) => {
+            const words = (v.textNormalized || v.text).split(/\s+/).filter(w => w.length > 0);
+            return sum + words.length;
+        }, 0);
+
+        console.log(`   Expected words: ${totalAllWords} → ${expectedWords.length} (filtered)\n`);
+
+        // STEP 4: Calculate metrics on filtered words only
+        const sequential = this.calculateSequentialMatch(transcriptWords, expectedWords);
+        const coverage = this.calculateCoverage(transcriptWords, expectedWords);
+        const countRatio = transcriptWords.length / expectedWords.length;
 
         // Log verification details
-        console.log(`📊 Verification metrics:`);
+        console.log(`📊 Verification metrics (filtered):`);
         console.log(`   Sequential match: ${(sequential * 100).toFixed(1)}%`);
         console.log(`   Coverage: ${(coverage * 100).toFixed(1)}%`);
-        console.log(`   Word count ratio: ${countRatio.toFixed(2)} (transcript: ${transcriptWords.length}, verses: ${verseWords.length})`);
+        console.log(`   Word count ratio: ${countRatio.toFixed(2)} (transcript: ${transcriptWords.length}, expected: ${expectedWords.length})`);
+
+        // Prepare verse classification for return
+        const verseClassification = {
+            present: presentVerses.map(v => v.ayah),
+            skipped: skippedVerses.map(v => v.ayah),
+            total: candidateVerses.length
+        };
 
         // Apply strict verification rules
         // HIGH CONFIDENCE: Sequential ≥85%, ratio 0.8-1.2, coverage ≥80%
@@ -1142,7 +1205,8 @@ class RecitationAnalyzer {
             return {
                 verified: true,
                 confidence: 'high',
-                scores: { sequential, coverage, countRatio }
+                scores: { sequential, coverage, countRatio },
+                verseClassification
             };
         }
 
@@ -1152,7 +1216,8 @@ class RecitationAnalyzer {
             return {
                 verified: true,
                 confidence: 'medium',
-                scores: { sequential, coverage, countRatio }
+                scores: { sequential, coverage, countRatio },
+                verseClassification
             };
         }
 
@@ -1162,6 +1227,7 @@ class RecitationAnalyzer {
             verified: false,
             confidence: 'low',
             scores: { sequential, coverage, countRatio },
+            verseClassification,
             reason: `Sequential: ${(sequential * 100).toFixed(1)}%, Coverage: ${(coverage * 100).toFixed(1)}%, Ratio: ${countRatio.toFixed(2)}`
         };
     }
