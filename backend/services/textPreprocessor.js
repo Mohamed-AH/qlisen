@@ -223,6 +223,85 @@ class TextPreprocessor {
     }
 
     /**
+     * Merge common word splits caused by Whisper STT
+     * Example: "يا يها" → "يايها", "ما ذا" → "ماذا"
+     *
+     * This fixes the word boundary mismatch between Quran and Whisper:
+     * - Quran: "يٓايها" (1 word)
+     * - Whisper: "يا يها" (2 words, should be merged)
+     *
+     * @param {Array<string>} words - Array of words
+     * @returns {Array<string>} Words with common splits merged
+     */
+    mergeCommonSplits(words) {
+        const merged = [];
+        let i = 0;
+
+        while (i < words.length) {
+            const current = words[i];
+            const next = words[i + 1];
+
+            // Check if current + next form a common split pattern
+            if (next && this.shouldMergeWords(current, next)) {
+                // Merge the two words
+                merged.push(current + next);
+                i += 2; // Skip both words
+            } else {
+                merged.push(current);
+                i += 1;
+            }
+        }
+
+        return merged;
+    }
+
+    /**
+     * Check if two words should be merged
+     * Returns true for common Whisper split patterns
+     */
+    shouldMergeWords(word1, word2) {
+        // Normalize both words for comparison
+        const norm1 = this.normalizeForNgrams(word1);
+        const norm2 = this.normalizeForNgrams(word2);
+
+        // ONLY merge specific known patterns to avoid false positives
+        // Being conservative is better than incorrectly merging valid words
+
+        // 1. "يا يها" → "يايها" (O you) - most common split
+        if (norm1 === 'يا' && (norm2 === 'يها' || norm2 === 'ايها')) {
+            return true;
+        }
+
+        // 2. "ي يها" → "ييها" (variant)
+        if (norm1 === 'ي' && (norm2 === 'يها' || norm2 === 'ايها')) {
+            return true;
+        }
+
+        // 3. "ما ذا" → "ماذا" (what)
+        if (norm1 === 'ما' && norm2 === 'ذا') {
+            return true;
+        }
+
+        // 4. "من ذا" → "منذا" (who/from)
+        if (norm1 === 'من' && norm2 === 'ذا') {
+            return true;
+        }
+
+        // 5. "ل ما" → "لما" (when/for what)
+        if (norm1 === 'ل' && norm2 === 'ما') {
+            return true;
+        }
+
+        // DO NOT merge other short words - too risky for false positives
+        // Examples of words that should NOT merge:
+        // - "قل يا" (say, O) - two separate words
+        // - "من دون" (besides) - two separate words
+        // - "ان كنتم" (if you) - two separate words
+
+        return false;
+    }
+
+    /**
      * Check if a word is garbage (should be removed)
      */
     isGarbageWord(word) {
