@@ -16,6 +16,7 @@ class QuranService {
         this.quranData = null; // Full verses with metadata
         this.metadata = null; // Surah and page information
         this.ngramIndex = null; // Position detection index
+        this.firstWordIndex = null; // Optimized first-word index for n-gram lookups
         this.isInitialized = false;
     }
 
@@ -38,6 +39,11 @@ class QuranService {
             this.quranData = quranData.verses;
             this.metadata = metadata;
             this.ngramIndex = ngramIndex;
+
+            // Build first-word index for optimized n-gram lookups
+            console.log('🔧 Building first-word index for performance optimization...');
+            this.firstWordIndex = this.buildFirstWordIndex(this.ngramIndex);
+
             this.isInitialized = true;
 
             console.log('✅ Quran data loaded successfully');
@@ -45,12 +51,38 @@ class QuranService {
             console.log(`   📚 Surahs: ${this.metadata.totalSurahs}`);
             console.log(`   📄 Pages: ${this.metadata.totalPages}`);
             console.log(`   🔍 N-grams: ${Object.keys(this.ngramIndex).length.toLocaleString()}`);
+            console.log(`   ⚡ First-word index: ${Object.keys(this.firstWordIndex).length.toLocaleString()} unique first words`);
 
             return true;
         } catch (error) {
             console.error('❌ Failed to load Quran data:', error.message);
             throw error;
         }
+    }
+
+    /**
+     * Build first-word index for optimized n-gram lookups
+     * Maps first word → array of n-grams starting with that word
+     * This dramatically reduces search space during fuzzy matching
+     * @param {object} ngramIndex - Full n-gram index
+     * @returns {object} Index mapping first word to n-grams
+     */
+    buildFirstWordIndex(ngramIndex) {
+        const { normalizeForNgrams } = require('../utils/fuzzyMatch');
+        const firstWordIndex = {};
+
+        for (const ngram of Object.keys(ngramIndex)) {
+            const firstWord = ngram.split(' ')[0];
+            const normalizedFirstWord = normalizeForNgrams(firstWord);
+
+            // Index by both original and normalized first word for flexibility
+            if (!firstWordIndex[normalizedFirstWord]) {
+                firstWordIndex[normalizedFirstWord] = [];
+            }
+            firstWordIndex[normalizedFirstWord].push(ngram);
+        }
+
+        return firstWordIndex;
     }
 
     /**
