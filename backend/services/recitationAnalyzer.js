@@ -614,11 +614,20 @@ class RecitationAnalyzer {
     async alignToVerses(preprocessedText, surahId) {
         const startTime = Date.now();
 
+        console.log('🔍 Step 1: Word-by-Word Alignment');
+        console.log('─'.repeat(55));
+
         // Get all verses for this surah
         const allSurahVerses = this.quranService.quranData.filter(v => v.surah === surahId);
+        const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+
+        console.log(`   Surah: ${allSurahVerses[0]?.surahName} (ID: ${surahId})`);
+        console.log(`   Total verses in surah: ${allSurahVerses.length}`);
+        console.log(`   Transcript words: ${transcriptWords.length}`);
+        console.log(`   Analyzing each verse...\n`);
 
         const alignments = [];
-        const transcriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+        let debugCount = 0;
 
         // For each verse, check how well it matches parts of the transcript
         for (const verse of allSurahVerses) {
@@ -637,7 +646,20 @@ class RecitationAnalyzer {
                 accuracy: alignment.accuracy,
                 alignment: alignment.details
             });
+
+            // DEBUG: Show first 3 verses and any with accuracy >= 50%
+            if (debugCount < 3 || alignment.accuracy >= 0.50) {
+                const status = alignment.accuracy >= 0.90 ? '✅' :
+                              alignment.accuracy >= 0.70 ? '⚠️' :
+                              alignment.accuracy >= 0.50 ? '🟨' : '❌';
+                console.log(`   [Verse ${verse.ayah}] ${status} Accuracy: ${(alignment.accuracy * 100).toFixed(1)}% (${alignment.matched}/${verseWords.length} words)`);
+                if (debugCount < 3) {
+                    console.log(`      Text: ${verse.text.substring(0, 60)}...`);
+                }
+            }
+            debugCount++;
         }
+        console.log();
 
         // Detect the actual verse range that was recited
         const verseRange = this.detectVerseRange(alignments);
@@ -660,24 +682,38 @@ class RecitationAnalyzer {
      * Detect which verses were actually recited (find the continuous range)
      */
     detectVerseRange(alignments) {
+        console.log('🔍 Step 2: Detect Verse Range');
+        console.log('─'.repeat(55));
+
         // Find all verses with significant matches (accuracy >= 50%)
         const significantVerses = alignments
             .filter(a => a.accuracy >= 0.50)
             .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
             .sort((a, b) => a.ayah - b.ayah);
 
+        console.log(`   Looking for verses with accuracy >= 50%...`);
+        console.log(`   Found ${significantVerses.length} significant verses`);
+
         if (significantVerses.length === 0) {
+            console.log(`   ⚠️ No verses >= 50%, trying >= 40%...`);
+
             // No significant matches at 50%, try 40%
             const moderateVerses = alignments
                 .filter(a => a.accuracy >= 0.40)
                 .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
                 .sort((a, b) => a.ayah - b.ayah);
 
+            console.log(`   Found ${moderateVerses.length} moderate verses (40-50%)`);
+
             if (moderateVerses.length === 0) {
+                console.log(`   ⚠️ No verses >= 40%, using highest accuracy verse...`);
+
                 // Still nothing, use highest accuracy verse
                 const sorted = alignments
                     .map(a => ({ ayah: a.ayah, accuracy: a.accuracy }))
                     .sort((a, b) => b.accuracy - a.accuracy);
+
+                console.log(`   Best verse: ${sorted[0]?.ayah} (${(sorted[0]?.accuracy * 100).toFixed(1)}%)\n`);
 
                 return {
                     startVerse: sorted[0]?.ayah || 1,
@@ -686,9 +722,11 @@ class RecitationAnalyzer {
                 };
             }
 
+            console.log(`   Verses: ${moderateVerses.map(v => `${v.ayah} (${(v.accuracy * 100).toFixed(1)}%)`).join(', ')}\n`);
             return this.findBestRange(moderateVerses);
         }
 
+        console.log(`   Verses: ${significantVerses.map(v => `${v.ayah} (${(v.accuracy * 100).toFixed(1)}%)`).join(', ')}\n`);
         return this.findBestRange(significantVerses);
     }
 
@@ -700,6 +738,9 @@ class RecitationAnalyzer {
             return { startVerse: 1, endVerse: 1, versesInRange: 1 };
         }
 
+        console.log('🔍 Step 3: Find Best Continuous Range');
+        console.log('─'.repeat(55));
+
         // Extract verse numbers
         const verseNumbers = significantVerses.map(v => v.ayah);
         const minVerse = Math.min(...verseNumbers);
@@ -709,9 +750,16 @@ class RecitationAnalyzer {
         // Calculate density: how many significant verses vs total range
         const density = significantVerses.length / rangeSize;
 
+        console.log(`   Min verse: ${minVerse}, Max verse: ${maxVerse}`);
+        console.log(`   Range size: ${rangeSize} verses`);
+        console.log(`   Density: ${(density * 100).toFixed(1)}% (${significantVerses.length}/${rangeSize})`);
+
         // If density is high (>40%), use min-max approach (handles intentional skips)
         // If density is low (<=40%), use continuous range building (handles scattered errors)
         if (density > 0.40) {
+            console.log(`   ✅ High density (>40%) - Using min-max approach`);
+            console.log(`   Final range: verses ${minVerse}-${maxVerse} (${rangeSize} verses)\n`);
+
             // Dense matches - likely a continuous recitation with some skipped verses
             return {
                 startVerse: minVerse,
@@ -719,6 +767,7 @@ class RecitationAnalyzer {
                 versesInRange: rangeSize
             };
         } else {
+            console.log(`   ⚠️ Low density (<=40%) - Building continuous range...`);
             // Sparse matches - likely scattered errors, use continuous range building
             let bestRange = {
                 start: significantVerses[0].ayah,
@@ -765,6 +814,9 @@ class RecitationAnalyzer {
                     };
                 }
             }
+
+            console.log(`   Final range: verses ${bestRange.start}-${bestRange.end} (${bestRange.count} verses)`);
+            console.log(`   Average accuracy: ${(bestRange.avgAccuracy * 100).toFixed(1)}%\n`);
 
             return {
                 startVerse: bestRange.start,
@@ -1118,6 +1170,9 @@ class RecitationAnalyzer {
      * Phase 3: Detect skipped verses
      */
     detectSkips(alignments) {
+        console.log('🔍 Step 4: Detect Skips & Errors');
+        console.log('─'.repeat(55));
+
         const skipped = [];
         const recited = [];
         const partial = [];
@@ -1144,6 +1199,22 @@ class RecitationAnalyzer {
                 });
             }
         }
+
+        console.log(`   ✅ Recited verses (≥70%): ${recited.length}`);
+        if (recited.length > 0 && recited.length <= 10) {
+            console.log(`      Verses: ${recited.map(v => `${v.ayah} (${(v.accuracy * 100).toFixed(1)}%)`).join(', ')}`);
+        }
+
+        console.log(`   ⚠️ Partial verses (25-70%): ${partial.length}`);
+        if (partial.length > 0 && partial.length <= 10) {
+            console.log(`      Verses: ${partial.map(v => `${v.ayah} (${(v.accuracy * 100).toFixed(1)}%)`).join(', ')}`);
+        }
+
+        console.log(`   ❌ Skipped verses (<25%): ${skipped.length}`);
+        if (skipped.length > 0 && skipped.length <= 10) {
+            console.log(`      Verses: ${skipped.map(v => `${v.ayah} (${(v.accuracy * 100).toFixed(1)}%)`).join(', ')}`);
+        }
+        console.log();
 
         return {
             skippedVerses: skipped,
@@ -1397,6 +1468,24 @@ class RecitationAnalyzer {
                         };
                         bestVerification = verification;
                     }
+
+                    // 🔬 DEBUG MODE: Proceed to detailed analysis even on rejection
+                    console.log('🔬 DEBUG MODE: Proceeding to detailed analysis despite rejection...\n');
+                    console.log('✅ PASS 2 ACCEPTED (DEBUG OVERRIDE) - Proceeding with n-gram result\n');
+
+                    return await this.performDetailedAnalysis(
+                        preprocessed.normalized,
+                        ngramResult.primarySurah.id,
+                        verseRange.startVerse,
+                        verseRange.endVerse,
+                        {
+                            ...metadata,
+                            detectionMethod: 'ngram_debug',
+                            confidence: 'debug_low',  // Mark as debug/low confidence
+                            verificationScores: verification.scores,
+                            pipelineStart
+                        }
+                    );
                 }
             } else {
                 console.log(`   No n-gram candidate found\n`);
