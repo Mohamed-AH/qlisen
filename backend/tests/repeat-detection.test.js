@@ -3,14 +3,17 @@
  * Including natural Quranic repetition vs user corrections
  */
 
-const RecitationAnalyzer = require('/home/user/qlisen/backend/services/recitationAnalyzer');
-const quranService = require('/home/user/qlisen/backend/services/quranService');
+const path = require('path');
+const RecitationAnalyzer = require('../services/recitationAnalyzer');
+const quranService = require('../services/quranService');
 
 async function runComprehensiveTests() {
     console.log('🧪 Comprehensive Repeat Detection Tests\n');
     console.log('═══════════════════════════════════════════════════════');
 
-    await quranService.init('/home/user/qlisen/data');
+    // Use relative path to data directory (works on all platforms)
+    const dataPath = path.join(__dirname, '..', '..', 'data');
+    await quranService.init(dataPath);
     const analyzer = new RecitationAnalyzer(quranService);
 
     const testScenarios = [
