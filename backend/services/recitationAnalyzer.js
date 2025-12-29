@@ -886,8 +886,16 @@ class RecitationAnalyzer {
         // Fixes word boundary mismatches: "يا يها" → "يايها"
         const mergedTranscriptWords = this.preprocessor.mergeCommonSplits(transcriptWords);
 
+        // DEBUG: Log word merging
+        if (transcriptWords.length !== mergedTranscriptWords.length) {
+            console.log(`🔧 Word merge applied: ${transcriptWords.length} → ${mergedTranscriptWords.length} words`);
+            console.log(`   Original first 10: ${transcriptWords.slice(0, 10).join(' ')}`);
+            console.log(`   Merged first 10: ${mergedTranscriptWords.slice(0, 10).join(' ')}`);
+        }
+
         let transcriptPos = 0;
         let matchedInOrder = 0;
+        let debugWordIndex = 0;
 
         for (const verseWord of verseWords) {
             let found = false;
@@ -901,6 +909,11 @@ class RecitationAnalyzer {
                 const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(mergedTranscriptWords[i]);
                 const similarity = levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord);
 
+                // DEBUG: Log first 5 comparisons
+                if (debugWordIndex < 5 && i === transcriptPos) {
+                    console.log(`   [${debugWordIndex}] Verse: "${verseWord}" (norm: "${normalizedVerseWord}") vs Transcript: "${mergedTranscriptWords[i]}" (norm: "${normalizedTranscriptWord}") = ${(similarity * 100).toFixed(1)}%`);
+                }
+
                 if (similarity >= 0.85) {  // Exact or very close match
                     matchedInOrder++;
                     transcriptPos = i + 1;  // Move forward past this match
@@ -908,6 +921,8 @@ class RecitationAnalyzer {
                     break;
                 }
             }
+
+            debugWordIndex++;
 
             // If not found in order, we've broken the sequence
             if (!found) {
