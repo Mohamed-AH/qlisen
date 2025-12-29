@@ -842,8 +842,8 @@ class RecitationAnalyzer {
                     transcriptPos: bestPos
                 });
                 transcriptPos = bestPos + 1; // Move past this match
-            } else if (bestSimilarity >= 0.75) {
-                // Fuzzy match
+            } else if (bestSimilarity >= 0.70) {
+                // Fuzzy match (lowered from 0.75 to 0.70 for Whisper tolerance)
                 fuzzy++;
                 matched++;
                 details.push({
@@ -914,7 +914,9 @@ class RecitationAnalyzer {
                     console.log(`   [${debugWordIndex}] Verse: "${verseWord}" (norm: "${normalizedVerseWord}") vs Transcript: "${mergedTranscriptWords[i]}" (norm: "${normalizedTranscriptWord}") = ${(similarity * 100).toFixed(1)}%`);
                 }
 
-                if (similarity >= 0.85) {  // Exact or very close match
+                // Lowered from 0.85 to 0.80 to catch small Whisper errors
+                // Example: "أيتيهم" vs "أيديهم" = 83.3% similar (1 char difference)
+                if (similarity >= 0.80) {  // Accept 80%+ similarity
                     matchedInOrder++;
                     transcriptPos = i + 1;  // Move forward past this match
                     found = true;
@@ -949,9 +951,10 @@ class RecitationAnalyzer {
             const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
 
             // Check if this verse word exists anywhere in transcript (order doesn't matter)
+            // Lowered from 0.85 to 0.80 to catch small Whisper errors
             const exists = mergedTranscriptWords.some(tw => {
                 const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(tw);
-                return levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord) >= 0.85;
+                return levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord) >= 0.80;
             });
 
             if (exists) found++;
