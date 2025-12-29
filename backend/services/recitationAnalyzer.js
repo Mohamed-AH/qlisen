@@ -2021,6 +2021,123 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Detect verse order issues
+     * Identifies out-of-order verses, wrong verses, skipped verses, and mixed surahs
+     *
+     * @param {Array} alignments - Alignment results from verse analysis
+     * @param {Object} verseRange - Detected verse range {startVerse, endVerse}
+     * @param {number} surahId - Primary surah ID
+     * @returns {Array} - Array of verse order issues
+     */
+    detectVerseOrderIssues(alignments, verseRange, surahId) {
+        const issues = [];
+
+        // Filter to verses that were actually recited (accuracy >= 40%)
+        const recitedVerses = alignments.filter(v => v.accuracy >= 0.40);
+
+        if (recitedVerses.length === 0) {
+            return issues; // No verses detected
+        }
+
+        // Sort by verse number for gap detection
+        const sortedVerses = [...recitedVerses].sort((a, b) => a.ayah - b.ayah);
+        const verseNumbers = sortedVerses.map(v => v.ayah);
+        const expectedStart = verseRange.startVerse;
+        const expectedEnd = verseRange.endVerse;
+
+        // Check 1: Detect gaps (skipped verses) in the expected range
+        for (let i = 0; i < verseNumbers.length - 1; i++) {
+            const current = verseNumbers[i];
+            const next = verseNumbers[i + 1];
+
+            // Check for gaps (skipped verses)
+            const gap = next - current;
+            if (gap > 1) {
+                const skippedVerses = [];
+                for (let v = current + 1; v < next; v++) {
+                    // Only report if it's within the expected range
+                    if (v >= expectedStart && v <= expectedEnd) {
+                        skippedVerses.push(v);
+                    }
+                }
+
+                if (skippedVerses.length > 0) {
+                    issues.push({
+                        type: 'skipped_verses',
+                        current: current,
+                        next: next,
+                        skipped: skippedVerses,
+                        severity: 'low',
+                        message: `Skipped verse(s) ${skippedVerses.join(', ')} between verse ${current} and ${next}`,
+                        suggestion: skippedVerses.length === 1
+                            ? `Make sure to include verse ${skippedVerses[0]}`
+                            : `Make sure to include verses ${skippedVerses.join(', ')}`
+                    });
+                }
+            }
+        }
+
+        // Check 3: Wrong verse recited (high accuracy but wrong verse number)
+        // This checks if user recited a completely different verse that matches well
+        for (const alignment of recitedVerses) {
+            // If this verse has high accuracy but is far from expected range
+            if (alignment.accuracy >= 0.70) {
+                const verseNum = alignment.ayah;
+                const distanceFromRange = Math.min(
+                    Math.abs(verseNum - expectedStart),
+                    Math.abs(verseNum - expectedEnd)
+                );
+
+                // If verse is more than 10 verses away from expected range, flag it
+                if (distanceFromRange > 10 && verseNum < expectedStart - 5 || verseNum > expectedEnd + 5) {
+                    issues.push({
+                        type: 'unexpected_verse',
+                        verse: verseNum,
+                        expectedRange: `${expectedStart}-${expectedEnd}`,
+                        accuracy: alignment.accuracy,
+                        severity: 'high',
+                        message: `Verse ${verseNum} recited, but expected range is ${expectedStart}-${expectedEnd}`,
+                        suggestion: `Verify you're reciting the correct section of the surah`
+                    });
+                }
+            }
+        }
+
+        // Check 4: Verses from different surah (if surah info available in alignments)
+        if (alignments.some(v => v.surah)) {
+            for (const alignment of recitedVerses) {
+                if (alignment.surah && alignment.surah !== surahId) {
+                    const wrongSurahName = this.quranService.quranData.find(v =>
+                        v.surah === alignment.surah
+                    )?.surahName || 'Unknown';
+
+                    const correctSurahName = this.quranService.quranData.find(v =>
+                        v.surah === surahId
+                    )?.surahName || 'Unknown';
+
+                    issues.push({
+                        type: 'different_surah',
+                        verse: alignment.ayah,
+                        expectedSurah: {
+                            id: surahId,
+                            name: correctSurahName
+                        },
+                        actualSurah: {
+                            id: alignment.surah,
+                            name: wrongSurahName
+                        },
+                        severity: 'high',
+                        message: `Verse ${alignment.ayah} is from ${wrongSurahName}, but expected ${correctSurahName}`,
+                        suggestion: `Focus on one surah at a time to avoid mixing`
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
      * Perform detailed analysis after position is verified
      */
     async performDetailedAnalysis(preprocessedText, surahId, startVerse, endVerse, metadata, basicRepeatDetection, originalTranscript) {
@@ -2084,6 +2201,22 @@ class RecitationAnalyzer {
         // Use the verse-aware results as final repeat detection
         const repeatDetection = verseAwareDetection;
 
+        // Phase 2.7: Detect verse order issues
+        console.log('\n═══════════════════════════════════════════════════════');
+        console.log('📍 VERSE ORDER DETECTION');
+        console.log('═══════════════════════════════════════════════════════\n');
+
+        const verseOrderIssues = this.detectVerseOrderIssues(alignments, verseRange, surahId);
+
+        if (verseOrderIssues.length > 0) {
+            console.log(`   ⚠️  Found ${verseOrderIssues.length} verse order issue(s):`);
+            verseOrderIssues.forEach((issue, idx) => {
+                console.log(`     ${idx + 1}. ${issue.type}: ${issue.message}`);
+            });
+        } else {
+            console.log('   ✅ All verses in correct order');
+        }
+
         // Phase 3: Detect skips
         const skipDetection = this.detectSkips(alignments);
 
@@ -2120,6 +2253,11 @@ class RecitationAnalyzer {
         if (repeatDetection.repeats.length > 0) {
             report.repeats = repeatDetection.repeats;
             report.repeatStats = repeatDetection.stats;
+        }
+
+        // Add verse order issues if any
+        if (verseOrderIssues.length > 0) {
+            report.verseOrderIssues = verseOrderIssues;
         }
 
         return report;
