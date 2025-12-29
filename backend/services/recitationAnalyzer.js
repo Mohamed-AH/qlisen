@@ -615,6 +615,7 @@ class RecitationAnalyzer {
 
             alignments.push({
                 ayah: verse.ayah,
+                text: verse.text,
                 accuracy: alignment.accuracy,
                 wordsMatched: alignment.matched + alignment.fuzzy,
                 wordCount: verseWords.length,
@@ -1688,7 +1689,7 @@ class RecitationAnalyzer {
     /**
      * Phase 4: Generate comprehensive report
      */
-    generateReport(surahDetection, alignments, skipDetection, verseRange, metadata) {
+    generateReport(surahDetection, alignments, skipDetection, verseRange, metadata, preprocessedText = null) {
         // Calculate overall accuracy
         const totalWords = alignments.reduce((sum, a) => sum + a.wordCount, 0);
         const matchedWords = alignments.reduce((sum, a) => sum + a.wordsMatched, 0);
@@ -1706,7 +1707,67 @@ class RecitationAnalyzer {
             });
         }
 
-        // Add partial verses with missing words
+        // Add word-level errors with enhanced feedback
+        for (const alignment of alignments) {
+            if (alignment.alignment && alignment.accuracy < 0.95) {
+                // Get normalized verse words for comparison
+                const verseText = alignment.text || '';
+                const verseWords = verseText.split(/\s+/).filter(w => w.length > 0);
+                const normalizedVerseWords = verseWords.map(w => this.preprocessor.normalizeForNgrams(w));
+
+                // Extract transcript words for this verse
+                let transcriptWords = [];
+
+                if (preprocessedText) {
+                    // Use the full transcript to get all words in the range
+                    const allTranscriptWords = preprocessedText.split(/\s+/).filter(w => w.length > 0);
+
+                    // Find the min and max transcript positions used for this verse
+                    const positions = alignment.alignment
+                        .filter(d => d.transcriptPos !== undefined)
+                        .map(d => d.transcriptPos);
+
+                    if (positions.length > 0) {
+                        const minPos = Math.min(...positions);
+                        const maxPos = Math.max(...positions);
+
+                        // Extract all words from minPos to maxPos (inclusive)
+                        transcriptWords = allTranscriptWords.slice(minPos, maxPos + 1);
+                    }
+                } else {
+                    // Fallback: Extract from alignment details (old behavior)
+                    const heardWordsWithPos = alignment.alignment
+                        .filter(d => d.heard && d.transcriptPos !== undefined)
+                        .map(d => ({ word: d.heard, pos: d.transcriptPos }))
+                        .sort((a, b) => a.pos - b.pos);
+
+                    const uniquePositions = new Set();
+                    for (const item of heardWordsWithPos) {
+                        if (!uniquePositions.has(item.pos)) {
+                            uniquePositions.add(item.pos);
+                            transcriptWords.push(item.word);
+                        }
+                    }
+                }
+
+                // Enhance word-level errors (use normalized words for comparison)
+                const enhancedErrors = this.enhanceWordLevelErrors(
+                    alignment.alignment,
+                    normalizedVerseWords,
+                    transcriptWords
+                );
+
+                // Add enhanced errors to mistakes
+                enhancedErrors.forEach(error => {
+                    mistakes.push({
+                        ayah: alignment.ayah,
+                        ...error
+                    });
+                });
+            }
+        }
+
+        // Add partial verses with missing words (keep this for backward compatibility)
         for (const partial of skipDetection.partialVerses) {
             if (partial.missingWords.length > 0) {
                 mistakes.push({
@@ -1940,9 +2001,9 @@ class RecitationAnalyzer {
                 } else {
                     console.log(`\n❌ PASS 2 REJECTED - ${verification.reason}\n`);
 
-                    // Keep track of best candidate
-                    if (!bestVerification ||
-                        verification.scores.sequential > bestVerification.scores.sequential) {
+                    // Keep track of best candidate (only if scores are available)
+                    if (verification.scores && (!bestVerification ||
+                        verification.scores.sequential > (bestVerification.scores?.sequential || 0))) {
                         bestCandidate = {
                             method: 'ngram',
                             surah: ngramResult.primarySurah.name,
@@ -2018,6 +2079,219 @@ class RecitationAnalyzer {
                 message: error.message
             };
         }
+    }
+
+    /**
+     * Analyze the difference between two words to provide specific feedback
+     * Detects insertions, deletions, substitutions, and transpositions
+     *
+     * @param {string} expectedWord - The correct word from the verse
+     * @param {string} heardWord - The word from the transcript
+     * @returns {Object} - Analysis of the difference
+     */
+    analyzeWordDifference(expectedWord, heardWord) {
+        if (!heardWord || !expectedWord) {
+            return { type: 'missing', difference: null };
+        }
+
+        // Exact match
+        if (expectedWord === heardWord) {
+            return { type: 'perfect', difference: null };
+        }
+
+        // Check for insertion (heard has extra characters)
+        if (heardWord.length > expectedWord.length && heardWord.includes(expectedWord)) {
+            const extra = heardWord.replace(expectedWord, '');
+            return {
+                type: 'insertion',
+                difference: {
+                    extra: extra,
+                    message: `Added extra "${extra}" to ${expectedWord}`,
+                    severity: 'minor'
+                }
+            };
+        }
+
+        // Check for deletion (heard is missing characters)
+        if (expectedWord.length > heardWord.length && expectedWord.includes(heardWord)) {
+            const missing = expectedWord.replace(heardWord, '');
+            return {
+                type: 'deletion',
+                difference: {
+                    missing: missing,
+                    message: `Missing "${missing}" from ${expectedWord}`,
+                    severity: 'minor'
+                }
+            };
+        }
+
+        // Check for prefix/suffix differences (very common in Arabic)
+        if (heardWord.length === expectedWord.length + 1) {
+            // Likely prefix or suffix addition
+            if (heardWord.endsWith(expectedWord)) {
+                const prefix = heardWord[0];
+                return {
+                    type: 'prefix_addition',
+                    difference: {
+                        prefix: prefix,
+                        message: `Added prefix "${prefix}" to ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+            if (heardWord.startsWith(expectedWord)) {
+                const suffix = heardWord[heardWord.length - 1];
+                return {
+                    type: 'suffix_addition',
+                    difference: {
+                        suffix: suffix,
+                        message: `Added suffix "${suffix}" to ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+        }
+
+        if (expectedWord.length === heardWord.length + 1) {
+            // Likely prefix or suffix deletion
+            if (expectedWord.endsWith(heardWord)) {
+                const prefix = expectedWord[0];
+                return {
+                    type: 'prefix_deletion',
+                    difference: {
+                        prefix: prefix,
+                        message: `Missing prefix "${prefix}" from ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+            if (expectedWord.startsWith(heardWord)) {
+                const suffix = expectedWord[expectedWord.length - 1];
+                return {
+                    type: 'suffix_deletion',
+                    difference: {
+                        suffix: suffix,
+                        message: `Missing suffix "${suffix}" from ${expectedWord}`,
+                        severity: 'minor'
+                    }
+                };
+            }
+        }
+
+        // Check for character substitution (similar length)
+        if (Math.abs(expectedWord.length - heardWord.length) <= 2) {
+            return {
+                type: 'substitution',
+                difference: {
+                    expected: expectedWord,
+                    heard: heardWord,
+                    message: `Said "${heardWord}" instead of "${expectedWord}"`,
+                    severity: 'medium'
+                }
+            };
+        }
+
+        // Completely different words
+        return {
+            type: 'wrong_word',
+            difference: {
+                expected: expectedWord,
+                heard: heardWord,
+                message: `Wrong word: said "${heardWord}", should be "${expectedWord}"`,
+                severity: 'major'
+            }
+        };
+    }
+
+    /**
+     * Detect if words are present but in wrong order (jumbled)
+     * Compares word sets to see if all words exist but sequence is wrong
+     *
+     * @param {Array<string>} transcriptWords - Words from transcript
+     * @param {Array<string>} verseWords - Expected words from verse
+     * @param {number} accuracy - Current alignment accuracy
+     * @returns {Object|null} - Word order issue if detected, null otherwise
+     */
+    detectWordOrderIssue(transcriptWords, verseWords, accuracy) {
+        // Only check if accuracy is unexpectedly low but word counts are similar
+        if (accuracy >= 0.90 || Math.abs(transcriptWords.length - verseWords.length) > 2) {
+            return null;
+        }
+
+        // Create word frequency maps (to handle repeated words)
+        const transcriptWordSet = new Set(transcriptWords);
+        const verseWordSet = new Set(verseWords);
+
+        // Count how many verse words exist in transcript (regardless of order)
+        let matchingWords = 0;
+        verseWords.forEach(word => {
+            if (transcriptWordSet.has(word)) {
+                matchingWords++;
+            }
+        });
+
+        // If most words (>80%) exist but accuracy is low, likely word order issue
+        const wordExistenceRatio = matchingWords / verseWords.length;
+
+        if (wordExistenceRatio >= 0.80 && accuracy < 0.90) {
+            return {
+                type: 'word_order',
+                matchingWords: matchingWords,
+                totalWords: verseWords.length,
+                wordExistenceRatio: wordExistenceRatio,
+                sequentialAccuracy: accuracy,
+                message: `Most words are correct (${matchingWords}/${verseWords.length}), but they appear to be in the wrong order`,
+                suggestion: 'Check the sequence of words in this verse',
+                severity: 'high'
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Enhance word-level error reporting with specific feedback
+     * Analyzes alignment details to provide clear, actionable error messages
+     *
+     * @param {Array} alignmentDetails - Word-by-word alignment details
+     * @param {Array<string>} verseWords - Expected words
+     * @param {Array<string>} transcriptWords - Heard words
+     * @returns {Array} - Enhanced error list with specific messages
+     */
+    enhanceWordLevelErrors(alignmentDetails, verseWords, transcriptWords) {
+        const enhancedErrors = [];
+
+        // First check for word order issue
+        const accuracy = alignmentDetails.filter(d => d.matched).length / verseWords.length;
+        const wordOrderIssue = this.detectWordOrderIssue(transcriptWords, verseWords, accuracy);
+
+        if (wordOrderIssue) {
+            enhancedErrors.push(wordOrderIssue);
+            // If it's a word order issue, don't report individual word errors
+            // as they would be misleading
+            return enhancedErrors;
+        }
+
+        // Analyze individual word differences
+        alignmentDetails.forEach((detail, index) => {
+            if (!detail.matched && detail.expected) {
+                const analysis = this.analyzeWordDifference(
+                    detail.expected,
+                    detail.heard || ''
+                );
+
+                if (analysis.difference) {
+                    enhancedErrors.push({
+                        position: index,
+                        expected: detail.expected,
+                        heard: detail.heard || null,
+                        ...analysis.difference
+                    });
+                }
+            }
+        });
+
+        return enhancedErrors;
     }
 
     /**
@@ -2241,7 +2515,8 @@ class RecitationAnalyzer {
                 ...metadata,
                 totalProcessingTime,
                 verificationScores: metadata.verificationScores
-            }
+            },
+            preprocessedText
         );
 
         // Add confidence and verification scores to report
