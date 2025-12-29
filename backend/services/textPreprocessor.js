@@ -5,16 +5,16 @@
 
 class TextPreprocessor {
     constructor() {
-        // Common filler words and speech errors to remove
+        // Garbage tokens for Whisper transcription
+        // NOTE: Whisper is very accurate, so we only filter obvious non-Arabic garbage
+        // Browser speech recognition needed extensive filtering, but Whisper doesn't produce
+        // filler words or speech errors during Quran recitation
         this.garbageTokens = new Set([
-            // Single letters (except valid Arabic prefixes)
+            // Single Latin letters (obvious transcription errors)
             'Y', 'N', 'R', 'A', 'E', 'I', 'O', 'U',
-            // Filler words
-            'يعني', 'اه', 'ام', 'ممم', 'اهم', 'يا',
-            // Common speech errors
-            'مين', 'ايه', 'لي', 'ما',
-            // Numbers
+            // Arabic numerals (Whisper should output words, not numerals)
             '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩', '٠'
+            // All Arabic word filtering removed - Whisper doesn't hallucinate filler words
         ]);
 
         // Valid single-letter Arabic words
