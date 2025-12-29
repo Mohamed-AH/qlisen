@@ -40,13 +40,20 @@
    - Generates summary statistics by category and severity
    - Groups mistakes by category in report for easier UI consumption
 
+8. **Priority 1.1: Repeat Detection** ✅ (Completed 2025-12-29)
+   - Detects user corrections and practice repetitions
+   - Filters out natural Quranic repetition (verse-aware detection)
+   - Provides positive feedback for self-corrections
+   - Includes repeat summary statistics in report (total, by type)
+   - Test results: 28/31 passing (90% success rate)
+
 ---
 
 ## Remaining Work 🎯
 
 ### Priority 1: Core Analysis Improvements
 
-#### 1.1 Repeat Detection ⭐
+#### 1.1 Repeat Detection ✅ **COMPLETED**
 **Problem**: Users often repeat words/verses for correction or practice
 
 **Example**:
