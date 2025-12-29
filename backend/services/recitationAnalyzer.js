@@ -262,6 +262,12 @@ class RecitationAnalyzer {
         const { '2grams': ngrams2, '3grams': ngrams3, '4grams': ngrams4 } =
             this.preprocessor.extractAllNgrams(preprocessedText);
 
+        console.log(`📊 N-gram extraction:`);
+        console.log(`   2-grams: ${ngrams2.length} (e.g., "${ngrams2.slice(0, 3).join('", "')}")`);
+        console.log(`   3-grams: ${ngrams3.length} (e.g., "${ngrams3.slice(0, 3).join('", "')}")`);
+        console.log(`   4-grams: ${ngrams4.length} (e.g., "${ngrams4.slice(0, 3).join('", "')}")`);
+        console.log('');
+
         // Track scores per surah for each strategy
         const surahScores = {
             '2gram': new Map(),
@@ -1202,8 +1208,19 @@ class RecitationAnalyzer {
         const pipelineStart = Date.now();
 
         try {
+            console.log('\n═══════════════════════════════════════════════════════');
+            console.log('📋 PREPROCESSING');
+            console.log('═══════════════════════════════════════════════════════');
+            console.log(`📥 Raw transcript length: ${rawTranscript.length} chars`);
+            console.log(`📥 Raw transcript:\n${rawTranscript.substring(0, 200)}${rawTranscript.length > 200 ? '...' : ''}\n`);
+
             // Preprocessing
             const preprocessed = this.preprocessor.preprocess(rawTranscript);
+
+            console.log(`📊 After preprocessing:`);
+            console.log(`   Words: ${preprocessed.wordCount}`);
+            console.log(`   Removed tokens: ${preprocessed.removedTokens}`);
+            console.log(`   Normalized: ${preprocessed.normalized.substring(0, 200)}${preprocessed.normalized.length > 200 ? '...' : ''}`);
 
             if (preprocessed.wordCount < 3) {
                 return {
