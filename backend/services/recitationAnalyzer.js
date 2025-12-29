@@ -808,10 +808,14 @@ class RecitationAnalyzer {
             let bestSimilarity = 0;
             let bestPos = -1;
 
+            // CRITICAL: Apply aggressive normalization before comparison
+            const normalizedExpected = this.preprocessor.normalizeForNgrams(expected);
+
             // Search forward from current position in transcript
             for (let j = transcriptPos; j < transcriptWords.length; j++) {
                 const heard = transcriptWords[j];
-                const similarity = levenshteinSimilarity(expected, heard);
+                const normalizedHeard = this.preprocessor.normalizeForNgrams(heard);
+                const similarity = levenshteinSimilarity(normalizedExpected, normalizedHeard);
 
                 if (similarity > bestSimilarity) {
                     bestSimilarity = similarity;
@@ -884,9 +888,14 @@ class RecitationAnalyzer {
         for (const verseWord of verseWords) {
             let found = false;
 
+            // CRITICAL: Apply aggressive normalization before comparison
+            // This handles Whisper transcription differences (يٓايها → يايها)
+            const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
+
             // Search forward in transcript from current position
             for (let i = transcriptPos; i < transcriptWords.length; i++) {
-                const similarity = levenshteinSimilarity(verseWord, transcriptWords[i]);
+                const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(transcriptWords[i]);
+                const similarity = levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord);
 
                 if (similarity >= 0.85) {  // Exact or very close match
                     matchedInOrder++;
@@ -913,10 +922,14 @@ class RecitationAnalyzer {
         let found = 0;
 
         for (const verseWord of verseWords) {
+            // CRITICAL: Apply aggressive normalization before comparison
+            const normalizedVerseWord = this.preprocessor.normalizeForNgrams(verseWord);
+
             // Check if this verse word exists anywhere in transcript (order doesn't matter)
-            const exists = transcriptWords.some(tw =>
-                levenshteinSimilarity(verseWord, tw) >= 0.85
-            );
+            const exists = transcriptWords.some(tw => {
+                const normalizedTranscriptWord = this.preprocessor.normalizeForNgrams(tw);
+                return levenshteinSimilarity(normalizedVerseWord, normalizedTranscriptWord) >= 0.85;
+            });
 
             if (exists) found++;
         }
