@@ -139,7 +139,212 @@ Error: "كالفراش" marked as wrong (but user said "الفراش" correctly)
 
 ---
 
-#### 1.3 Mistake Categorization
+#### 1.3 Verse Order Detection ⭐
+**Problem**: Users recite verses out of order or wrong verse entirely
+
+**Common scenarios**:
+```
+Scenario 1: Out of order
+Expected: Verses 1, 2, 3, 4
+User said: Verses 1, 2, 4, 3 (swapped 3 and 4)
+
+Scenario 2: Wrong verse entirely
+Expected: Verse 6 "فَأَمَّا مَن ثَقُلَتْ مَوَٰزِينُهُۥ"
+User said: Verse 8 "فَأَمَّا مَن خَفَّتْ مَوَٰزِينُهُۥ"
+
+Scenario 3: Skipped and returned
+Expected: Verses 6, 7, 8, 9, 10
+User said: Verses 6, 7, 9, 8, 10 (skipped 8, then came back)
+
+Scenario 4: Mixed verses
+Expected: Al-Jumu'ah verses 6-11
+User said: Verses 6, 7, 8, then Al-Munafiqun verse 1
+```
+
+**Real-world example from Al-Qari'ah test**:
+```
+User recited: "فأما من خفت موازينه فأمه هاوية"
+This is from: Verse 8 (خفت = light scales)
+Expected was: Verse 6 (ثقلت = heavy scales)
+
+The system detected it but didn't explain clearly:
+❌ Current: "Word mismatch at position 18"
+✅ Needed: "You recited verse 8 instead of verse 6 - these are similar but opposite!"
+```
+
+**Detection algorithm**:
+```javascript
+function detectVerseOrderIssues(detectedVerses, expectedSequence) {
+    const issues = [];
+
+    // 1. Check for out-of-sequence verses
+    for (let i = 0; i < detectedVerses.length - 1; i++) {
+        const current = detectedVerses[i].verse;
+        const next = detectedVerses[i + 1].verse;
+
+        // Verses should be sequential or at least increasing
+        if (next < current) {
+            issues.push({
+                type: 'out_of_order',
+                verse1: current,
+                verse2: next,
+                message: `Verse ${next} came after verse ${current} (should be before)`
+            });
+        }
+
+        // Check for large gaps (skipped verses)
+        if (next - current > 2) {
+            const skipped = [];
+            for (let v = current + 1; v < next; v++) {
+                skipped.push(v);
+            }
+            issues.push({
+                type: 'skipped_verses',
+                skipped: skipped,
+                message: `You skipped verses ${skipped.join(', ')} between ${current} and ${next}`
+            });
+        }
+    }
+
+    // 2. Check for wrong verse entirely (high similarity but wrong verse number)
+    for (const detected of detectedVerses) {
+        if (detected.accuracy > 0.80 && detected.verse !== detected.expectedVerse) {
+            // Find which verse was actually recited
+            const actualVerse = findBestMatchingVerse(detected.transcript);
+
+            issues.push({
+                type: 'wrong_verse',
+                expected: detected.expectedVerse,
+                actual: actualVerse.verse,
+                similarity: actualVerse.similarity,
+                message: `You recited verse ${actualVerse.verse} instead of verse ${detected.expectedVerse}`
+            });
+        }
+    }
+
+    // 3. Check for verses from different surah
+    const primarySurah = detectedVerses[0].surah;
+    for (const detected of detectedVerses) {
+        if (detected.surah !== primarySurah) {
+            issues.push({
+                type: 'different_surah',
+                expectedSurah: primarySurah,
+                actualSurah: detected.surah,
+                verse: detected.verse,
+                message: `Verse ${detected.verse} is from ${detected.surahName}, not ${primarySurah.name}`
+            });
+        }
+    }
+
+    return issues;
+}
+
+function findBestMatchingVerse(transcript) {
+    // For each verse in the surah, calculate similarity
+    const allVerses = getCurrentSurahVerses();
+    let bestMatch = null;
+    let bestSimilarity = 0;
+
+    for (const verse of allVerses) {
+        const similarity = calculateVerseSimilarity(transcript, verse.text);
+        if (similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            bestMatch = verse;
+        }
+    }
+
+    return { verse: bestMatch.ayah, similarity: bestSimilarity };
+}
+```
+
+**Specific feedback examples**:
+```javascript
+// Scenario 1: Out of order
+{
+    type: 'out_of_order',
+    message: "📍 Verse order issue: You recited verse 9 after verse 10 (should be before)",
+    suggestion: "Review the order of verses 9-10",
+    severity: 'medium'
+}
+
+// Scenario 2: Wrong verse entirely (similar verses)
+{
+    type: 'wrong_verse',
+    message: "⚠️ You recited verse 8 instead of verse 6. Both verses are similar:\n" +
+             "  • Verse 6: فَأَمَّا مَن ثَقُلَتْ (heavy scales)\n" +
+             "  • Verse 8: فَأَمَّا مَن خَفَّتْ (light scales)",
+    suggestion: "These verses are opposites - memorize them together to avoid confusion",
+    severity: 'high'
+}
+
+// Scenario 3: Skipped and returned
+{
+    type: 'skipped_then_returned',
+    message: "🔄 You skipped verse 8, then came back to it. Recitation order was: 6, 7, 9, 8, 10",
+    suggestion: "This is okay for practice, but try to follow the proper sequence",
+    severity: 'low'
+}
+
+// Scenario 4: Different surah
+{
+    type: 'different_surah',
+    message: "📖 You mixed surahs! Started with Al-Jumu'ah, then recited Al-Munafiqun verse 1",
+    suggestion: "Focus on one surah at a time",
+    severity: 'high'
+}
+```
+
+**Implementation steps**:
+1. **After verse detection**, before word-by-word analysis:
+   - Compare detected verse numbers with expected sequence
+   - Identify gaps, reversals, or duplicates
+
+2. **For each verse with low accuracy (<70%)**:
+   - Check if it matches a different verse in the same surah
+   - Use n-gram matching against all verses in the surah
+   - Report "You recited verse X instead of verse Y"
+
+3. **Enhance comparison logic**:
+   - When verse 6 expected but transcript matches verse 8
+   - Don't just mark all words as wrong
+   - Detect and report: "Wrong verse recited"
+
+4. **Add to report**:
+```json
+{
+  "verseOrderIssues": [
+    {
+      "type": "wrong_verse",
+      "expected": 6,
+      "actual": 8,
+      "confidence": 0.95,
+      "message": "You recited verse 8 instead of verse 6"
+    }
+  ]
+}
+```
+
+**Files to modify**:
+- `backend/services/recitationAnalyzer.js`:
+  - Add `detectVerseOrderIssues()` method
+  - Add `findBestMatchingVerse()` helper
+  - Call after verse-level alignment, before word-level analysis
+  - Include results in final report
+
+**Effort**: Medium (3-4 hours)
+**Priority**: HIGH - Catches confusing errors like Al-Qari'ah verse 6/8 mix-up
+
+**Test cases needed**:
+- [ ] Sequential verses recited correctly
+- [ ] Verses out of order (3, 2, 1)
+- [ ] Verse skipped then returned to
+- [ ] Wrong verse (similar verses like Al-Qari'ah 6 vs 8)
+- [ ] Mixed verses from different surahs
+- [ ] Duplicate verse recited
+
+---
+
+#### 1.4 Mistake Categorization
 **Problem**: All mistakes treated equally - users don't understand what went wrong
 
 **Categories needed**:
@@ -447,7 +652,12 @@ describe('Al-Qari\'ah (101) Tests', () => {
 - Improve error messages
 - Test with real examples
 
-**Day 5**: Mistake Categorization (1.3)
+**Day 5**: Verse Order Detection (1.3)
+- Implement verse sequence checking
+- Add wrong verse detection
+- Test with Al-Qari'ah example (verse 6/8 confusion)
+
+**Day 6**: Mistake Categorization (1.4)
 - Add error types
 - Generate specific feedback
 
