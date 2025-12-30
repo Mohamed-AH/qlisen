@@ -1,4 +1,32 @@
 {
+  "او۟لٓيك علي هدي من ربهم ۖ واو۟لٓيك هم المفلحون": {
+    "text_preview": "او۟لٓيك علي هدي من ربهم ۖ واو۟لٓيك هم المفلحون",
+    "text_full": "او۟لٓيك علي هدي من ربهم ۖ واو۟لٓيك هم المفلحون",
+    "word_count": 9,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 2,
+        "surahName": "البقرة",
+        "startVerse": 5,
+        "endVerse": 5,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "5",
+        "uiHint": "بعد: ان الذين كفروا۟ سوآ عليهم..."
+      },
+      {
+        "surahId": 31,
+        "surahName": "لقمان",
+        "startVerse": 5,
+        "endVerse": 5,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "5",
+        "uiHint": "بعد: ومن الناس من يشتري لهو..."
+      }
+    ]
+  },
   "يبنيٓ اسرٓيل اذكروا۟ نعمتي التيٓ انعمت عليكم واني فضلتكم علي العلمين": {
     "text_preview": "يبنيٓ اسرٓيل اذكروا۟ نعمتي التيٓ انعمت عليكم واني ...",
     "text_full": "يبنيٓ اسرٓيل اذكروا۟ نعمتي التيٓ انعمت عليكم واني فضلتكم علي العلمين",
@@ -83,6 +111,34 @@
       }
     ]
   },
+  "والذين كفروا۟ وكذبوا۟ بٔايتنآ او۟لٓيك اصحب الجحيم": {
+    "text_preview": "والذين كفروا۟ وكذبوا۟ بٔايتنآ او۟لٓيك اصحب الجحيم",
+    "text_full": "والذين كفروا۟ وكذبوا۟ بٔايتنآ او۟لٓيك اصحب الجحيم",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 5,
+        "surahName": "المائدة",
+        "startVerse": 10,
+        "endVerse": 10,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "10",
+        "uiHint": "بعد: يٓايها الذين امنوا۟ اذكروا۟ نعمت..."
+      },
+      {
+        "surahId": 5,
+        "surahName": "المائدة",
+        "startVerse": 86,
+        "endVerse": 86,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "86",
+        "uiHint": "بعد: يٓايها الذين امنوا۟ لا تحرموا۟..."
+      }
+    ]
+  },
   "وما تاتيهم من ايه من ايت ربهم الا كانوا۟ عنها معرضين": {
     "text_preview": "وما تاتيهم من ايه من ايت ربهم الا كانوا۟ عنها معرض...",
     "text_full": "وما تاتيهم من ايه من ايت ربهم الا كانوا۟ عنها معرضين",
@@ -139,6 +195,174 @@
       }
     ]
   },
+  "قل انيٓ اخاف ان عصيت ربي عذاب يوم عظيم": {
+    "text_preview": "قل انيٓ اخاف ان عصيت ربي عذاب يوم عظيم",
+    "text_full": "قل انيٓ اخاف ان عصيت ربي عذاب يوم عظيم",
+    "word_count": 9,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 6,
+        "surahName": "الأنعام",
+        "startVerse": 15,
+        "endVerse": 15,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "15",
+        "uiHint": "بعد: من يصرف عنه يوميذ فقد..."
+      },
+      {
+        "surahId": 39,
+        "surahName": "الزمر",
+        "startVerse": 13,
+        "endVerse": 13,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "13",
+        "uiHint": "بعد: قل الله اعبد مخلصا لهۥ..."
+      }
+    ]
+  },
+  "فاخذتهم الرجفه فاصبحوا۟ في دارهم جثمين": {
+    "text_preview": "فاخذتهم الرجفه فاصبحوا۟ في دارهم جثمين",
+    "text_full": "فاخذتهم الرجفه فاصبحوا۟ في دارهم جثمين",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 7,
+        "surahName": "الأعراف",
+        "startVerse": 78,
+        "endVerse": 78,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "78",
+        "uiHint": "بعد: فتولي عنهم وقال يقوم لقد..."
+      },
+      {
+        "surahId": 7,
+        "surahName": "الأعراف",
+        "startVerse": 91,
+        "endVerse": 91,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "91",
+        "uiHint": "بعد: الذين كذبوا۟ شعيبا كان لم..."
+      }
+    ]
+  },
+  "فالقي عصاه فاذا هي ثعبان مبين": {
+    "text_preview": "فالقي عصاه فاذا هي ثعبان مبين",
+    "text_full": "فالقي عصاه فاذا هي ثعبان مبين",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 7,
+        "surahName": "الأعراف",
+        "startVerse": 107,
+        "endVerse": 107,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "107",
+        "uiHint": "بعد: ونزع يدهۥ فاذا هي بيضآ..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 32,
+        "endVerse": 32,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "32",
+        "uiHint": "بعد: ونزع يدهۥ فاذا هي بيضآ..."
+      }
+    ]
+  },
+  "فالقي عصاه فاذا هي ثعبان مبين ونزع يدهۥ فاذا هي بيضآ للنظرين": {
+    "text_preview": "فالقي عصاه فاذا هي ثعبان مبين ونزع يدهۥ فاذا هي بي...",
+    "text_full": "فالقي عصاه فاذا هي ثعبان مبين ونزع يدهۥ فاذا هي بيضآ للنظرين",
+    "word_count": 12,
+    "verse_count": 2,
+    "occurrences": [
+      {
+        "surahId": 7,
+        "surahName": "الأعراف",
+        "startVerse": 107,
+        "endVerse": 108,
+        "verseCount": 2,
+        "wordCount": 12,
+        "verseRange": "107-108",
+        "uiHint": "بعد: قال الملا من قوم فرعون..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 32,
+        "endVerse": 33,
+        "verseCount": 2,
+        "wordCount": 12,
+        "verseRange": "32-33",
+        "uiHint": "بعد: قال للملا حولهۥٓ ان هذا..."
+      }
+    ]
+  },
+  "ونزع يدهۥ فاذا هي بيضآ للنظرين": {
+    "text_preview": "ونزع يدهۥ فاذا هي بيضآ للنظرين",
+    "text_full": "ونزع يدهۥ فاذا هي بيضآ للنظرين",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 7,
+        "surahName": "الأعراف",
+        "startVerse": 108,
+        "endVerse": 108,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "108",
+        "uiHint": "بعد: قال الملا من قوم فرعون..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 33,
+        "endVerse": 33,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "33",
+        "uiHint": "بعد: قال للملا حولهۥٓ ان هذا..."
+      }
+    ]
+  },
+  "واملي لهم ۚ ان كيدي متين": {
+    "text_preview": "واملي لهم ۚ ان كيدي متين",
+    "text_full": "واملي لهم ۚ ان كيدي متين",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 7,
+        "surahName": "الأعراف",
+        "startVerse": 183,
+        "endVerse": 183,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "183",
+        "uiHint": "بعد: اولم يتفكروا۟ ۗ ما بصاحبهم..."
+      },
+      {
+        "surahId": 68,
+        "surahName": "القلم",
+        "startVerse": 45,
+        "endVerse": 45,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "45",
+        "uiHint": "بعد: ام تسٔلهم اجرا فهم من..."
+      }
+    ]
+  },
   "هو الذيٓ ارسل رسولهۥ بالهدي ودين الحق ليظهرهۥ علي الدين كلهۦ ولو كره المشركون": {
     "text_preview": "هو الذيٓ ارسل رسولهۥ بالهدي ودين الحق ليظهرهۥ علي ...",
     "text_full": "هو الذيٓ ارسل رسولهۥ بالهدي ودين الحق ليظهرهۥ علي الدين كلهۦ ولو كره المشركون",
@@ -192,6 +416,438 @@
         "wordCount": 13,
         "verseRange": "9",
         "uiHint": "بعد: ضرب الله مثلا للذين كفروا۟..."
+      }
+    ]
+  },
+  "ويقولون متي هذا الوعد ان كنتم صدقين": {
+    "text_preview": "ويقولون متي هذا الوعد ان كنتم صدقين",
+    "text_full": "ويقولون متي هذا الوعد ان كنتم صدقين",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 10,
+        "surahName": "يونس",
+        "startVerse": 48,
+        "endVerse": 48,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "48",
+        "uiHint": "بعد: قل لآ املك لنفسي ضرا..."
+      },
+      {
+        "surahId": 21,
+        "surahName": "الأنبياء",
+        "startVerse": 38,
+        "endVerse": 38,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "38",
+        "uiHint": "بعد: لو يعلم الذين كفروا۟ حين..."
+      },
+      {
+        "surahId": 27,
+        "surahName": "النمل",
+        "startVerse": 71,
+        "endVerse": 71,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "71",
+        "uiHint": "بعد: قل عسيٓ ان يكون ردف..."
+      },
+      {
+        "surahId": 34,
+        "surahName": "سبأ",
+        "startVerse": 29,
+        "endVerse": 29,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "29",
+        "uiHint": "بعد: قل لكم ميعاد يوم لا..."
+      },
+      {
+        "surahId": 36,
+        "surahName": "يس",
+        "startVerse": 48,
+        "endVerse": 48,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "48",
+        "uiHint": "بعد: ما ينظرون الا صيحه وحده..."
+      },
+      {
+        "surahId": 67,
+        "surahName": "الملك",
+        "startVerse": 25,
+        "endVerse": 25,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "25",
+        "uiHint": "بعد: قل انما العلم عند الله..."
+      }
+    ]
+  },
+  "ولقد ارسلنا موسي بٔايتنا وسلطن مبين": {
+    "text_preview": "ولقد ارسلنا موسي بٔايتنا وسلطن مبين",
+    "text_full": "ولقد ارسلنا موسي بٔايتنا وسلطن مبين",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 11,
+        "surahName": "هود",
+        "startVerse": 96,
+        "endVerse": 96,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "96",
+        "uiHint": "بعد: الي فرعون وملاي۟هۦ فاتبعوٓا۟ امر..."
+      },
+      {
+        "surahId": 40,
+        "surahName": "غافر",
+        "startVerse": 23,
+        "endVerse": 23,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "23",
+        "uiHint": "بعد: الي فرعون وهمن وقرون فقالوا۟..."
+      }
+    ]
+  },
+  "وما ذلك علي الله بعزيز": {
+    "text_preview": "وما ذلك علي الله بعزيز",
+    "text_full": "وما ذلك علي الله بعزيز",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 14,
+        "surahName": "إبراهيم",
+        "startVerse": 20,
+        "endVerse": 20,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "20",
+        "uiHint": "بعد: وبرزوا۟ لله جميعا فقال الضعفٓوا۟..."
+      },
+      {
+        "surahId": 35,
+        "surahName": "فاطر",
+        "startVerse": 17,
+        "endVerse": 17,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "17",
+        "uiHint": "بعد: ولا تزر وازره وزر اخري..."
+      }
+    ]
+  },
+  "ما تسبق من امه اجلها وما يستٔخرون": {
+    "text_preview": "ما تسبق من امه اجلها وما يستٔخرون",
+    "text_full": "ما تسبق من امه اجلها وما يستٔخرون",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 5,
+        "endVerse": 5,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "5",
+        "uiHint": "بعد: وقالوا۟ يٓايها الذي نزل عليه..."
+      },
+      {
+        "surahId": 23,
+        "surahName": "المؤمنون",
+        "startVerse": 43,
+        "endVerse": 43,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "43",
+        "uiHint": "بعد: ثم ارسلنا رسلنا تترا ۖ..."
+      }
+    ]
+  },
+  "فاذا سويتهۥ ونفخت فيه من روحي فقعوا۟ لهۥ سجدين": {
+    "text_preview": "فاذا سويتهۥ ونفخت فيه من روحي فقعوا۟ لهۥ سجدين",
+    "text_full": "فاذا سويتهۥ ونفخت فيه من روحي فقعوا۟ لهۥ سجدين",
+    "word_count": 9,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 29,
+        "endVerse": 29,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "29",
+        "uiHint": "بعد: فسجد الملٓيكه كلهم اجمعون..."
+      },
+      {
+        "surahId": 38,
+        "surahName": "ص",
+        "startVerse": 72,
+        "endVerse": 72,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "72",
+        "uiHint": "بعد: فسجد الملٓيكه كلهم اجمعون..."
+      }
+    ]
+  },
+  "فاذا سويتهۥ ونفخت فيه من روحي فقعوا۟ لهۥ سجدين فسجد الملٓيكه كلهم اجمعون": {
+    "text_preview": "فاذا سويتهۥ ونفخت فيه من روحي فقعوا۟ لهۥ سجدين فسج...",
+    "text_full": "فاذا سويتهۥ ونفخت فيه من روحي فقعوا۟ لهۥ سجدين فسجد الملٓيكه كلهم اجمعون",
+    "word_count": 13,
+    "verse_count": 2,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 29,
+        "endVerse": 30,
+        "verseCount": 2,
+        "wordCount": 13,
+        "verseRange": "29-30",
+        "uiHint": "بعد: الآ ابليس ابيٓ ان يكون..."
+      },
+      {
+        "surahId": 38,
+        "surahName": "ص",
+        "startVerse": 72,
+        "endVerse": 73,
+        "verseCount": 2,
+        "wordCount": 13,
+        "verseRange": "72-73",
+        "uiHint": "بعد: الآ ابليس استكبر وكان من..."
+      }
+    ]
+  },
+  "قال فاخرج منها فانك رجيم": {
+    "text_preview": "قال فاخرج منها فانك رجيم",
+    "text_full": "قال فاخرج منها فانك رجيم",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 34,
+        "endVerse": 34,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "34",
+        "uiHint": "بعد: وان عليك اللعنه الي يوم..."
+      },
+      {
+        "surahId": 38,
+        "surahName": "ص",
+        "startVerse": 77,
+        "endVerse": 77,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "77",
+        "uiHint": "بعد: وان عليك لعنتيٓ الي يوم..."
+      }
+    ]
+  },
+  "قال رب فانظرنيٓ الي يوم يبعثون": {
+    "text_preview": "قال رب فانظرنيٓ الي يوم يبعثون",
+    "text_full": "قال رب فانظرنيٓ الي يوم يبعثون",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 36,
+        "endVerse": 36,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "36",
+        "uiHint": "بعد: قال فانك من المنظرين..."
+      },
+      {
+        "surahId": 38,
+        "surahName": "ص",
+        "startVerse": 79,
+        "endVerse": 79,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "79",
+        "uiHint": "بعد: قال فانك من المنظرين..."
+      }
+    ]
+  },
+  "قال رب فانظرنيٓ الي يوم يبعثون قال فانك من المنظرين": {
+    "text_preview": "قال رب فانظرنيٓ الي يوم يبعثون قال فانك من المنظري...",
+    "text_full": "قال رب فانظرنيٓ الي يوم يبعثون قال فانك من المنظرين",
+    "word_count": 10,
+    "verse_count": 2,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 36,
+        "endVerse": 37,
+        "verseCount": 2,
+        "wordCount": 10,
+        "verseRange": "36-37",
+        "uiHint": "بعد: الي يوم الوقت المعلوم..."
+      },
+      {
+        "surahId": 38,
+        "surahName": "ص",
+        "startVerse": 79,
+        "endVerse": 80,
+        "verseCount": 2,
+        "wordCount": 10,
+        "verseRange": "79-80",
+        "uiHint": "بعد: الي يوم الوقت المعلوم..."
+      }
+    ]
+  },
+  "قال رب فانظرنيٓ الي يوم يبعثون قال فانك من المنظرين الي يوم الوقت المعلوم": {
+    "text_preview": "قال رب فانظرنيٓ الي يوم يبعثون قال فانك من المنظري...",
+    "text_full": "قال رب فانظرنيٓ الي يوم يبعثون قال فانك من المنظرين الي يوم الوقت المعلوم",
+    "word_count": 14,
+    "verse_count": 3,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 36,
+        "endVerse": 38,
+        "verseCount": 3,
+        "wordCount": 14,
+        "verseRange": "36-38",
+        "uiHint": "بعد: قال رب بمآ اغويتني لازينن..."
+      },
+      {
+        "surahId": 38,
+        "surahName": "ص",
+        "startVerse": 79,
+        "endVerse": 81,
+        "verseCount": 3,
+        "wordCount": 14,
+        "verseRange": "79-81",
+        "uiHint": "بعد: قال فبعزتك لاغوينهم اجمعين..."
+      }
+    ]
+  },
+  "ان المتقين في جنت وعيون": {
+    "text_preview": "ان المتقين في جنت وعيون",
+    "text_full": "ان المتقين في جنت وعيون",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 45,
+        "endVerse": 45,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "45",
+        "uiHint": "بعد: ادخلوها بسلم امنين..."
+      },
+      {
+        "surahId": 51,
+        "surahName": "الذاريات",
+        "startVerse": 15,
+        "endVerse": 15,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "15",
+        "uiHint": "بعد: اخذين مآ اتيهم ربهم ۚ..."
+      }
+    ]
+  },
+  "قالوٓا۟ انآ ارسلنآ الي قوم مجرمين": {
+    "text_preview": "قالوٓا۟ انآ ارسلنآ الي قوم مجرمين",
+    "text_full": "قالوٓا۟ انآ ارسلنآ الي قوم مجرمين",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 15,
+        "surahName": "الحجر",
+        "startVerse": 58,
+        "endVerse": 58,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "58",
+        "uiHint": "بعد: الآ ال لوط انا لمنجوهم..."
+      },
+      {
+        "surahId": 51,
+        "surahName": "الذاريات",
+        "startVerse": 32,
+        "endVerse": 32,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "32",
+        "uiHint": "بعد: لنرسل عليهم حجاره من طين..."
+      }
+    ]
+  },
+  "الذين صبروا۟ وعلي ربهم يتوكلون": {
+    "text_preview": "الذين صبروا۟ وعلي ربهم يتوكلون",
+    "text_full": "الذين صبروا۟ وعلي ربهم يتوكلون",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 16,
+        "surahName": "النحل",
+        "startVerse": 42,
+        "endVerse": 42,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "42",
+        "uiHint": "بعد: ومآ ارسلنا من قبلك الا..."
+      },
+      {
+        "surahId": 29,
+        "surahName": "العنكبوت",
+        "startVerse": 59,
+        "endVerse": 59,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "59",
+        "uiHint": "بعد: وكاين من دآبه لا تحمل..."
+      }
+    ]
+  },
+  "اذهب الي فرعون انهۥ طغي": {
+    "text_preview": "اذهب الي فرعون انهۥ طغي",
+    "text_full": "اذهب الي فرعون انهۥ طغي",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 20,
+        "surahName": "طه",
+        "startVerse": 24,
+        "endVerse": 24,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "24",
+        "uiHint": "بعد: قال رب اشرح لي صدري..."
+      },
+      {
+        "surahId": 79,
+        "surahName": "النازعات",
+        "startVerse": 17,
+        "endVerse": 17,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "17",
+        "uiHint": "بعد: فقل هل لك اليٓ ان..."
       }
     ]
   },
@@ -279,6 +935,342 @@
       }
     ]
   },
+  "فمن ابتغي ورآ ذلك فاو۟لٓيك هم العادون": {
+    "text_preview": "فمن ابتغي ورآ ذلك فاو۟لٓيك هم العادون",
+    "text_full": "فمن ابتغي ورآ ذلك فاو۟لٓيك هم العادون",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 23,
+        "surahName": "المؤمنون",
+        "startVerse": 7,
+        "endVerse": 7,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "7",
+        "uiHint": "بعد: والذين هم لامنتهم وعهدهم رعون..."
+      },
+      {
+        "surahId": 70,
+        "surahName": "المعارج",
+        "startVerse": 31,
+        "endVerse": 31,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "31",
+        "uiHint": "بعد: والذين هم لامنتهم وعهدهم رعون..."
+      }
+    ]
+  },
+  "فمن ابتغي ورآ ذلك فاو۟لٓيك هم العادون والذين هم لامنتهم وعهدهم رعون": {
+    "text_preview": "فمن ابتغي ورآ ذلك فاو۟لٓيك هم العادون والذين هم ل...",
+    "text_full": "فمن ابتغي ورآ ذلك فاو۟لٓيك هم العادون والذين هم لامنتهم وعهدهم رعون",
+    "word_count": 12,
+    "verse_count": 2,
+    "occurrences": [
+      {
+        "surahId": 23,
+        "surahName": "المؤمنون",
+        "startVerse": 7,
+        "endVerse": 8,
+        "verseCount": 2,
+        "wordCount": 12,
+        "verseRange": "7-8",
+        "uiHint": "بعد: والذين هم علي صلوتهم يحافظون..."
+      },
+      {
+        "surahId": 70,
+        "surahName": "المعارج",
+        "startVerse": 31,
+        "endVerse": 32,
+        "verseCount": 2,
+        "wordCount": 12,
+        "verseRange": "31-32",
+        "uiHint": "بعد: والذين هم بشهدتهم قآيمون..."
+      }
+    ]
+  },
+  "والذين هم لامنتهم وعهدهم رعون": {
+    "text_preview": "والذين هم لامنتهم وعهدهم رعون",
+    "text_full": "والذين هم لامنتهم وعهدهم رعون",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 23,
+        "surahName": "المؤمنون",
+        "startVerse": 8,
+        "endVerse": 8,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "8",
+        "uiHint": "بعد: والذين هم علي صلوتهم يحافظون..."
+      },
+      {
+        "surahId": 70,
+        "surahName": "المعارج",
+        "startVerse": 32,
+        "endVerse": 32,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "32",
+        "uiHint": "بعد: والذين هم بشهدتهم قآيمون..."
+      }
+    ]
+  },
+  "قال رب انصرني بما كذبون": {
+    "text_preview": "قال رب انصرني بما كذبون",
+    "text_full": "قال رب انصرني بما كذبون",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 23,
+        "surahName": "المؤمنون",
+        "startVerse": 26,
+        "endVerse": 26,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "26",
+        "uiHint": "بعد: فاوحينآ اليه ان اصنع الفلك..."
+      },
+      {
+        "surahId": 23,
+        "surahName": "المؤمنون",
+        "startVerse": 39,
+        "endVerse": 39,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "39",
+        "uiHint": "بعد: قال عما قليل ليصبحن ندمين..."
+      }
+    ]
+  },
+  "ان في ذلك لٔايه ۖ وما كان اكثرهم مومنين": {
+    "text_preview": "ان في ذلك لٔايه ۖ وما كان اكثرهم مومنين",
+    "text_full": "ان في ذلك لٔايه ۖ وما كان اكثرهم مومنين",
+    "word_count": 9,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 8,
+        "endVerse": 8,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "8",
+        "uiHint": "بعد: وان ربك لهو العزيز الرحيم..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 67,
+        "endVerse": 67,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "67",
+        "uiHint": "بعد: وان ربك لهو العزيز الرحيم..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 103,
+        "endVerse": 103,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "103",
+        "uiHint": "بعد: وان ربك لهو العزيز الرحيم..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 121,
+        "endVerse": 121,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "121",
+        "uiHint": "بعد: وان ربك لهو العزيز الرحيم..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 174,
+        "endVerse": 174,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "174",
+        "uiHint": "بعد: وان ربك لهو العزيز الرحيم..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 190,
+        "endVerse": 190,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "190",
+        "uiHint": "بعد: وان ربك لهو العزيز الرحيم..."
+      }
+    ]
+  },
+  "ان في ذلك لٔايه ۖ وما كان اكثرهم مومنين وان ربك لهو العزيز الرحيم": {
+    "text_preview": "ان في ذلك لٔايه ۖ وما كان اكثرهم مومنين وان ربك له...",
+    "text_full": "ان في ذلك لٔايه ۖ وما كان اكثرهم مومنين وان ربك لهو العزيز الرحيم",
+    "word_count": 14,
+    "verse_count": 2,
+    "occurrences": [
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 8,
+        "endVerse": 9,
+        "verseCount": 2,
+        "wordCount": 14,
+        "verseRange": "8-9",
+        "uiHint": "بعد: واذ نادي ربك موسيٓ ان..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 67,
+        "endVerse": 68,
+        "verseCount": 2,
+        "wordCount": 14,
+        "verseRange": "67-68",
+        "uiHint": "بعد: واتل عليهم نبا ابرهيم..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 103,
+        "endVerse": 104,
+        "verseCount": 2,
+        "wordCount": 14,
+        "verseRange": "103-104",
+        "uiHint": "بعد: كذبت قوم نوح المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 121,
+        "endVerse": 122,
+        "verseCount": 2,
+        "wordCount": 14,
+        "verseRange": "121-122",
+        "uiHint": "بعد: كذبت عاد المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 174,
+        "endVerse": 175,
+        "verseCount": 2,
+        "wordCount": 14,
+        "verseRange": "174-175",
+        "uiHint": "بعد: كذب اصحب لٔيكه المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 190,
+        "endVerse": 191,
+        "verseCount": 2,
+        "wordCount": 14,
+        "verseRange": "190-191",
+        "uiHint": "بعد: وانهۥ لتنزيل رب العلمين..."
+      }
+    ]
+  },
+  "وان ربك لهو العزيز الرحيم": {
+    "text_preview": "وان ربك لهو العزيز الرحيم",
+    "text_full": "وان ربك لهو العزيز الرحيم",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 9,
+        "endVerse": 9,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "9",
+        "uiHint": "بعد: واذ نادي ربك موسيٓ ان..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 68,
+        "endVerse": 68,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "68",
+        "uiHint": "بعد: واتل عليهم نبا ابرهيم..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 104,
+        "endVerse": 104,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "104",
+        "uiHint": "بعد: كذبت قوم نوح المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 122,
+        "endVerse": 122,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "122",
+        "uiHint": "بعد: كذبت عاد المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 140,
+        "endVerse": 140,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "140",
+        "uiHint": "بعد: كذبت ثمود المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 159,
+        "endVerse": 159,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "159",
+        "uiHint": "بعد: كذبت قوم لوط المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 175,
+        "endVerse": 175,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "175",
+        "uiHint": "بعد: كذب اصحب لٔيكه المرسلين..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 191,
+        "endVerse": 191,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "191",
+        "uiHint": "بعد: وانهۥ لتنزيل رب العلمين..."
+      }
+    ]
+  },
   "ومآ اسٔلكم عليه من اجر ۖ ان اجري الا علي رب العلمين": {
     "text_preview": "ومآ اسٔلكم عليه من اجر ۖ ان اجري الا علي رب العلم...",
     "text_full": "ومآ اسٔلكم عليه من اجر ۖ ان اجري الا علي رب العلمين",
@@ -337,6 +1329,400 @@
       }
     ]
   },
+  "قالوٓا۟ انمآ انت من المسحرين": {
+    "text_preview": "قالوٓا۟ انمآ انت من المسحرين",
+    "text_full": "قالوٓا۟ انمآ انت من المسحرين",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 153,
+        "endVerse": 153,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "153",
+        "uiHint": "بعد: مآ انت الا بشر مثلنا..."
+      },
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 185,
+        "endVerse": 185,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "185",
+        "uiHint": "بعد: ومآ انت الا بشر مثلنا..."
+      }
+    ]
+  },
+  "وامطرنا عليهم مطرا ۖ فسآ مطر المنذرين": {
+    "text_preview": "وامطرنا عليهم مطرا ۖ فسآ مطر المنذرين",
+    "text_full": "وامطرنا عليهم مطرا ۖ فسآ مطر المنذرين",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 26,
+        "surahName": "الشعراء",
+        "startVerse": 173,
+        "endVerse": 173,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "173",
+        "uiHint": "بعد: ان في ذلك لٔايه ۖ..."
+      },
+      {
+        "surahId": 27,
+        "surahName": "النمل",
+        "startVerse": 58,
+        "endVerse": 58,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "58",
+        "uiHint": "بعد: قل الحمد لله وسلم علي..."
+      }
+    ]
+  },
+  "الذين يقيمون الصلوه ويوتون الزكوه وهم بالٔاخره هم يوقنون": {
+    "text_preview": "الذين يقيمون الصلوه ويوتون الزكوه وهم بالٔاخره هم ...",
+    "text_full": "الذين يقيمون الصلوه ويوتون الزكوه وهم بالٔاخره هم يوقنون",
+    "word_count": 9,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 27,
+        "surahName": "النمل",
+        "startVerse": 3,
+        "endVerse": 3,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "3",
+        "uiHint": "بعد: ان الذين لا يومنون بالٔاخره..."
+      },
+      {
+        "surahId": 31,
+        "surahName": "لقمان",
+        "startVerse": 4,
+        "endVerse": 4,
+        "verseCount": 1,
+        "wordCount": 9,
+        "verseRange": "4",
+        "uiHint": "بعد: او۟لٓيك علي هدي من ربهم..."
+      }
+    ]
+  },
+  "ويوم يناديهم فيقول اين شركآي الذين كنتم تزعمون": {
+    "text_preview": "ويوم يناديهم فيقول اين شركآي الذين كنتم تزعمون",
+    "text_full": "ويوم يناديهم فيقول اين شركآي الذين كنتم تزعمون",
+    "word_count": 8,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 28,
+        "surahName": "القصص",
+        "startVerse": 62,
+        "endVerse": 62,
+        "verseCount": 1,
+        "wordCount": 8,
+        "verseRange": "62",
+        "uiHint": "بعد: قال الذين حق عليهم القول..."
+      },
+      {
+        "surahId": 28,
+        "surahName": "القصص",
+        "startVerse": 74,
+        "endVerse": 74,
+        "verseCount": 1,
+        "wordCount": 8,
+        "verseRange": "74",
+        "uiHint": "بعد: ونزعنا من كل امه شهيدا..."
+      }
+    ]
+  },
+  "واقبل بعضهم علي بعض يتسآلون": {
+    "text_preview": "واقبل بعضهم علي بعض يتسآلون",
+    "text_full": "واقبل بعضهم علي بعض يتسآلون",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 37,
+        "surahName": "الصافات",
+        "startVerse": 27,
+        "endVerse": 27,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "27",
+        "uiHint": "بعد: قالوٓا۟ انكم كنتم تاتوننا عن..."
+      },
+      {
+        "surahId": 52,
+        "surahName": "الطور",
+        "startVerse": 25,
+        "endVerse": 25,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "25",
+        "uiHint": "بعد: قالوٓا۟ انا كنا قبل فيٓ..."
+      }
+    ]
+  },
+  "ان هو الا ذكر للعلمين": {
+    "text_preview": "ان هو الا ذكر للعلمين",
+    "text_full": "ان هو الا ذكر للعلمين",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 38,
+        "surahName": "ص",
+        "startVerse": 87,
+        "endVerse": 87,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "87",
+        "uiHint": "بعد: ولتعلمن نباهۥ بعد حينۭ..."
+      },
+      {
+        "surahId": 81,
+        "surahName": "التكوير",
+        "startVerse": 27,
+        "endVerse": 27,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "27",
+        "uiHint": "بعد: لمن شآ منكم ان يستقيم..."
+      }
+    ]
+  },
+  "تنزيل الكتب من الله العزيز الحكيم": {
+    "text_preview": "تنزيل الكتب من الله العزيز الحكيم",
+    "text_full": "تنزيل الكتب من الله العزيز الحكيم",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 39,
+        "surahName": "الزمر",
+        "startVerse": 1,
+        "endVerse": 1,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "1",
+        "uiHint": "بعد: انآ انزلنآ اليك الكتب بالحق..."
+      },
+      {
+        "surahId": 45,
+        "surahName": "الجاثية",
+        "startVerse": 2,
+        "endVerse": 2,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "2",
+        "uiHint": "بعد: ان في السموت والارض لٔايت..."
+      },
+      {
+        "surahId": 46,
+        "surahName": "الأحقاف",
+        "startVerse": 2,
+        "endVerse": 2,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "2",
+        "uiHint": "بعد: ما خلقنا السموت والارض وما..."
+      }
+    ]
+  },
+  "فذرهم يخوضوا۟ ويلعبوا۟ حتي يلقوا۟ يومهم الذي يوعدون": {
+    "text_preview": "فذرهم يخوضوا۟ ويلعبوا۟ حتي يلقوا۟ يومهم الذي يوعدو...",
+    "text_full": "فذرهم يخوضوا۟ ويلعبوا۟ حتي يلقوا۟ يومهم الذي يوعدون",
+    "word_count": 8,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 43,
+        "surahName": "الزخرف",
+        "startVerse": 83,
+        "endVerse": 83,
+        "verseCount": 1,
+        "wordCount": 8,
+        "verseRange": "83",
+        "uiHint": "بعد: وهو الذي في السمآ اله..."
+      },
+      {
+        "surahId": 70,
+        "surahName": "المعارج",
+        "startVerse": 42,
+        "endVerse": 42,
+        "verseCount": 1,
+        "wordCount": 8,
+        "verseRange": "42",
+        "uiHint": "بعد: يوم يخرجون من الاجداث سراعا..."
+      }
+    ]
+  },
+  "كلوا۟ واشربوا۟ هنيٓٔۢا بما كنتم تعملون": {
+    "text_preview": "كلوا۟ واشربوا۟ هنيٓٔۢا بما كنتم تعملون",
+    "text_full": "كلوا۟ واشربوا۟ هنيٓٔۢا بما كنتم تعملون",
+    "word_count": 6,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 52,
+        "surahName": "الطور",
+        "startVerse": 19,
+        "endVerse": 19,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "19",
+        "uiHint": "بعد: متكٔين علي سرر مصفوفه ۖ..."
+      },
+      {
+        "surahId": 77,
+        "surahName": "المرسلات",
+        "startVerse": 43,
+        "endVerse": 43,
+        "verseCount": 1,
+        "wordCount": 6,
+        "verseRange": "43",
+        "uiHint": "بعد: انا كذلك نجزي المحسنين..."
+      }
+    ]
+  },
+  "ام تسٔلهم اجرا فهم من مغرم مثقلون": {
+    "text_preview": "ام تسٔلهم اجرا فهم من مغرم مثقلون",
+    "text_full": "ام تسٔلهم اجرا فهم من مغرم مثقلون",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 52,
+        "surahName": "الطور",
+        "startVerse": 40,
+        "endVerse": 40,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "40",
+        "uiHint": "بعد: ام عندهم الغيب فهم يكتبون..."
+      },
+      {
+        "surahId": 68,
+        "surahName": "القلم",
+        "startVerse": 46,
+        "endVerse": 46,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "46",
+        "uiHint": "بعد: ام عندهم الغيب فهم يكتبون..."
+      }
+    ]
+  },
+  "ام تسٔلهم اجرا فهم من مغرم مثقلون ام عندهم الغيب فهم يكتبون": {
+    "text_preview": "ام تسٔلهم اجرا فهم من مغرم مثقلون ام عندهم الغيب ف...",
+    "text_full": "ام تسٔلهم اجرا فهم من مغرم مثقلون ام عندهم الغيب فهم يكتبون",
+    "word_count": 12,
+    "verse_count": 2,
+    "occurrences": [
+      {
+        "surahId": 52,
+        "surahName": "الطور",
+        "startVerse": 40,
+        "endVerse": 41,
+        "verseCount": 2,
+        "wordCount": 12,
+        "verseRange": "40-41",
+        "uiHint": "بعد: ام يريدون كيدا ۖ فالذين..."
+      },
+      {
+        "surahId": 68,
+        "surahName": "القلم",
+        "startVerse": 46,
+        "endVerse": 47,
+        "verseCount": 2,
+        "wordCount": 12,
+        "verseRange": "46-47",
+        "uiHint": "بعد: فاصبر لحكم ربك ولا تكن..."
+      }
+    ]
+  },
+  "ام عندهم الغيب فهم يكتبون": {
+    "text_preview": "ام عندهم الغيب فهم يكتبون",
+    "text_full": "ام عندهم الغيب فهم يكتبون",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 52,
+        "surahName": "الطور",
+        "startVerse": 41,
+        "endVerse": 41,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "41",
+        "uiHint": "بعد: ام يريدون كيدا ۖ فالذين..."
+      },
+      {
+        "surahId": 68,
+        "surahName": "القلم",
+        "startVerse": 47,
+        "endVerse": 47,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "47",
+        "uiHint": "بعد: فاصبر لحكم ربك ولا تكن..."
+      }
+    ]
+  },
+  "ولقد يسرنا القران للذكر فهل من مدكر": {
+    "text_preview": "ولقد يسرنا القران للذكر فهل من مدكر",
+    "text_full": "ولقد يسرنا القران للذكر فهل من مدكر",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 54,
+        "surahName": "القمر",
+        "startVerse": 17,
+        "endVerse": 17,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "17",
+        "uiHint": "بعد: كذبت عاد فكيف كان عذابي..."
+      },
+      {
+        "surahId": 54,
+        "surahName": "القمر",
+        "startVerse": 22,
+        "endVerse": 22,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "22",
+        "uiHint": "بعد: كذبت ثمود بالنذر..."
+      },
+      {
+        "surahId": 54,
+        "surahName": "القمر",
+        "startVerse": 32,
+        "endVerse": 32,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "32",
+        "uiHint": "بعد: كذبت قوم لوطۭ بالنذر..."
+      },
+      {
+        "surahId": 54,
+        "surahName": "القمر",
+        "startVerse": 40,
+        "endVerse": 40,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "40",
+        "uiHint": "بعد: ولقد جآ ال فرعون الن��ر..."
+      }
+    ]
+  },
   "سبح لله ما في السموت وما في الارض ۖ وهو العزيز الحكيم": {
     "text_preview": "سبح لله ما في السموت وما في الارض ۖ وهو العزيز الح...",
     "text_full": "سبح لله ما في السموت وما في الارض ۖ وهو العزيز الحكيم",
@@ -365,6 +1751,62 @@
       }
     ]
   },
+  "اذا تتلي عليه ايتنا قال اسطير الاولين": {
+    "text_preview": "اذا تتلي عليه ايتنا قال اسطير الاولين",
+    "text_full": "اذا تتلي عليه ايتنا قال اسطير الاولين",
+    "word_count": 7,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 68,
+        "surahName": "القلم",
+        "startVerse": 15,
+        "endVerse": 15,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "15",
+        "uiHint": "بعد: سنسمهۥ علي الخرطوم..."
+      },
+      {
+        "surahId": 83,
+        "surahName": "المطففين",
+        "startVerse": 13,
+        "endVerse": 13,
+        "verseCount": 1,
+        "wordCount": 7,
+        "verseRange": "13",
+        "uiHint": "بعد: كلا ۖ بل ۜ ران..."
+      }
+    ]
+  },
+  "ولا يحض علي طعام المسكين": {
+    "text_preview": "ولا يحض علي طعام المسكين",
+    "text_full": "ولا يحض علي طعام المسكين",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 69,
+        "surahName": "الحاقة",
+        "startVerse": 34,
+        "endVerse": 34,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "34",
+        "uiHint": "بعد: فليس له اليوم ههنا حميم..."
+      },
+      {
+        "surahId": 107,
+        "surahName": "الماعون",
+        "startVerse": 3,
+        "endVerse": 3,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "3",
+        "uiHint": "بعد: فويل للمصلين..."
+      }
+    ]
+  },
   "ان هذهۦ تذكره ۖ فمن شآ اتخذ الي ربهۦ سبيلا": {
     "text_preview": "ان هذهۦ تذكره ۖ فمن شآ اتخذ الي ربهۦ سبيلا",
     "text_full": "ان هذهۦ تذكره ۖ فمن شآ اتخذ الي ربهۦ سبيلا",
@@ -390,6 +1832,34 @@
         "wordCount": 10,
         "verseRange": "29",
         "uiHint": "بعد: وما تشآون الآ ان يشآ..."
+      }
+    ]
+  },
+  "ولآ انتم عبدون مآ اعبد": {
+    "text_preview": "ولآ انتم عبدون مآ اعبد",
+    "text_full": "ولآ انتم عبدون مآ اعبد",
+    "word_count": 5,
+    "verse_count": 1,
+    "occurrences": [
+      {
+        "surahId": 109,
+        "surahName": "الكافرون",
+        "startVerse": 3,
+        "endVerse": 3,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "3",
+        "uiHint": "بعد: ولآ انا۠ عابد ما عبدتم..."
+      },
+      {
+        "surahId": 109,
+        "surahName": "الكافرون",
+        "startVerse": 5,
+        "endVerse": 5,
+        "verseCount": 1,
+        "wordCount": 5,
+        "verseRange": "5",
+        "uiHint": "بعد: لكم دينكم ولي دين..."
       }
     ]
   }

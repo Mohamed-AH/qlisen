@@ -125,6 +125,195 @@ class RecitationAnalyzer {
     }
 
     /**
+     * Load duplicates registry from JSON file
+     */
+    loadDuplicatesRegistry() {
+        // Skip if already loaded
+        if (this.duplicatesRegistry !== null) {
+            return;
+        }
+
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const registryPath = path.join(__dirname, '..', '..', 'data', 'duplicates_registry.json');
+
+            if (!fs.existsSync(registryPath)) {
+                console.log('⚠️  Duplicates registry not found, skipping duplicate detection');
+                this.duplicatesRegistry = {};
+                return;
+            }
+
+            const registryData = fs.readFileSync(registryPath, 'utf8');
+            this.duplicatesRegistry = JSON.parse(registryData);
+
+            const count = Object.keys(this.duplicatesRegistry).length;
+            console.log(`📚 Duplicates registry loaded: ${count} duplicate sequences`);
+        } catch (error) {
+            console.error('Error loading duplicates registry:', error.message);
+            this.duplicatesRegistry = {};
+        }
+    }
+
+    /**
+     * Check if transcript matches a duplicate passage
+     * Returns REQUIRE_CHOICE if duplicate found, or auto-resolves if context is clear
+     */
+    checkDuplicatesRegistry(preprocessedText, rawTranscript) {
+        // Load registry if not already loaded
+        this.loadDuplicatesRegistry();
+
+        // If registry is empty or not available, skip
+        if (!this.duplicatesRegistry || Object.keys(this.duplicatesRegistry).length === 0) {
+            return { matched: false };
+        }
+
+        console.log('\n🔍 Checking duplicates registry...');
+
+        // Normalize transcript for matching (already preprocessed, just lowercase)
+        const normalizedTranscript = preprocessedText.toLowerCase().trim();
+
+        // Check if transcript matches any duplicate
+        for (const [duplicateText, data] of Object.entries(this.duplicatesRegistry)) {
+            // Normalize the registry key the same way we normalize the transcript
+            // This removes diacritics and Unicode decoration marks for comparison
+            let duplicateKey = this.preprocessor.normalizeArabic(duplicateText)
+                .toLowerCase()
+                .trim();
+
+            // Remove Quranic decoration marks (U+06D6-U+06ED) that appear as standalone words
+            // These marks like ۖ ۚ ۛ are removed during preprocessing
+            duplicateKey = duplicateKey
+                .split(/\s+/)
+                .filter(word => !/^[\u06D6-\u06ED]+$/.test(word))
+                .join(' ');
+
+            // Check for exact match or if transcript contains the duplicate
+            if (normalizedTranscript === duplicateKey || normalizedTranscript.includes(duplicateKey)) {
+                console.log(`   ✅ Duplicate match found! (${data.word_count} words, ${data.occurrences.length} locations)`);
+
+                // Check if user provided extra context (recited more than just the duplicate)
+                const hasExtraContext = normalizedTranscript.length > duplicateKey.length * 1.1;
+
+                if (hasExtraContext) {
+                    console.log(`   🔍 Extra context detected, attempting auto-resolution...`);
+
+                    // Try to auto-resolve based on context
+                    const resolved = this.detectContextForDuplicate(
+                        normalizedTranscript,
+                        duplicateKey,
+                        data.occurrences
+                    );
+
+                    if (resolved.success) {
+                        console.log(`   ✅ Auto-resolved to: ${resolved.occurrence.surahName} ${resolved.occurrence.verseRange}`);
+                        return {
+                            matched: true,
+                            autoResolved: true,
+                            occurrence: resolved.occurrence
+                        };
+                    }
+                }
+
+                // Cannot auto-resolve - return REQUIRE_CHOICE
+                console.log(`   ⚠️  Disambiguation required (${data.occurrences.length} possible locations)`);
+
+                return {
+                    matched: true,
+                    requiresChoice: true,
+                    duplicateData: data
+                };
+            }
+        }
+
+        console.log('   No duplicate matches found');
+        return { matched: false };
+    }
+
+    /**
+     * Try to auto-resolve duplicate based on surrounding context
+     * Checks if extra text matches verses before/after one of the locations
+     */
+    detectContextForDuplicate(fullTranscript, duplicateText, occurrences) {
+        if (!this.quranService.quranData) {
+            return { success: false };
+        }
+
+        // Extract the extra context (text beyond the duplicate)
+        const duplicateStart = fullTranscript.indexOf(duplicateText.toLowerCase());
+        const duplicateEnd = duplicateStart + duplicateText.length;
+
+        const contextBefore = fullTranscript.substring(0, duplicateStart).trim();
+        const contextAfter = fullTranscript.substring(duplicateEnd).trim();
+
+        console.log(`      Context before: ${contextBefore.substring(0, 50)}${contextBefore.length > 50 ? '...' : ''}`);
+        console.log(`      Context after: ${contextAfter.substring(0, 50)}${contextAfter.length > 50 ? '...' : ''}`);
+
+        // Check each occurrence to see if context matches
+        let matchCount = 0;
+        let lastMatch = null;
+
+        for (const occurrence of occurrences) {
+            const { surahId, startVerse, endVerse } = occurrence;
+
+            // Get verses before and after this occurrence
+            const versesBefore = this.quranService.quranData.filter(v =>
+                v.surah === surahId && v.ayah < startVerse && v.ayah >= startVerse - 3
+            );
+
+            const versesAfter = this.quranService.quranData.filter(v =>
+                v.surah === surahId && v.ayah > endVerse && v.ayah <= endVerse + 3
+            );
+
+            // Check if context before matches
+            let matchesBefore = false;
+            if (contextBefore.length > 0 && versesBefore.length > 0) {
+                let beforeText = versesBefore
+                    .map(v => this.preprocessor.normalizeArabic(v.textNormalized).toLowerCase())
+                    .join(' ');
+
+                // Remove standalone decoration marks
+                beforeText = beforeText
+                    .split(/\s+/)
+                    .filter(word => !/^[\u06D6-\u06ED]+$/.test(word))
+                    .join(' ');
+
+                matchesBefore = beforeText.includes(contextBefore) || contextBefore.includes(beforeText.substring(Math.max(0, beforeText.length - 30)));
+            }
+
+            // Check if context after matches
+            let matchesAfter = false;
+            if (contextAfter.length > 0 && versesAfter.length > 0) {
+                let afterText = versesAfter
+                    .map(v => this.preprocessor.normalizeArabic(v.textNormalized).toLowerCase())
+                    .join(' ');
+
+                // Remove standalone decoration marks
+                afterText = afterText
+                    .split(/\s+/)
+                    .filter(word => !/^[\u06D6-\u06ED]+$/.test(word))
+                    .join(' ');
+
+                matchesAfter = afterText.includes(contextAfter) || contextAfter.includes(afterText.substring(0, 30));
+            }
+
+            if (matchesBefore || matchesAfter) {
+                matchCount++;
+                lastMatch = occurrence;
+                console.log(`      ✓ Context matches ${occurrence.surahName} ${occurrence.verseRange}`);
+            }
+        }
+
+        // Only auto-resolve if exactly ONE occurrence matches the context
+        if (matchCount === 1) {
+            return { success: true, occurrence: lastMatch };
+        }
+
+        console.log(`      ✗ Context ambiguous (${matchCount} matches)`);
+        return { success: false };
+    }
+
+    /**
      * Fast-path detection for commonly recited passages
      * Checks transcript against surah beginnings and famous passages
      */
@@ -2113,6 +2302,63 @@ class RecitationAnalyzer {
             // Use cleaned text for surah detection and alignment
             const analyzableText = basicRepeatDetection.cleanedWords.join(' ');
             const analyzableWordCount = basicRepeatDetection.cleanedWords.length;
+
+            // ========== DUPLICATE REGISTRY CHECK ==========
+            // Check if this is a known duplicate passage before running expensive n-gram
+            console.log('\n═══════════════════════════════════════════════════════');
+            console.log('🔍 DUPLICATE REGISTRY CHECK');
+            console.log('═══════════════════════════════════════════════════════');
+
+            const duplicateCheck = this.checkDuplicatesRegistry(analyzableText, rawTranscript);
+
+            if (duplicateCheck.matched) {
+                if (duplicateCheck.autoResolved) {
+                    // Auto-resolved to a single location - proceed with that location
+                    const occurrence = duplicateCheck.occurrence;
+                    console.log(`\n✅ DUPLICATE AUTO-RESOLVED - Proceeding with ${occurrence.surahName} ${occurrence.verseRange}\n`);
+
+                    return await this.performDetailedAnalysis(
+                        analyzableText,
+                        occurrence.surahId,
+                        occurrence.startVerse,
+                        occurrence.endVerse,
+                        {
+                            ...metadata,
+                            detectionMethod: 'duplicate_auto_resolved',
+                            confidence: 1.0,
+                            pipelineStart
+                        },
+                        basicRepeatDetection,
+                        preprocessed.normalized
+                    );
+                } else if (duplicateCheck.requiresChoice) {
+                    // Cannot auto-resolve - need user to choose
+                    const data = duplicateCheck.duplicateData;
+                    console.log(`\n⚠️  DISAMBIGUATION REQUIRED - Returning REQUIRE_CHOICE\n`);
+
+                    return {
+                        success: false,
+                        status: 'REQUIRE_CHOICE',
+                        error: 'duplicate_disambiguation_required',
+                        message: 'This passage appears in multiple locations. Please select which one you intended:',
+                        options: data.occurrences.map(occ => ({
+                            ref: `${occ.surahId}:${occ.verseRange}`,
+                            surahId: occ.surahId,
+                            surahName: occ.surahName,
+                            verseRange: occ.verseRange,
+                            hint: occ.uiHint || ''
+                        })),
+                        duplicateInfo: {
+                            text_preview: data.text_preview,
+                            word_count: data.word_count,
+                            verse_count: data.verse_count,
+                            occurrence_count: data.occurrences.length
+                        }
+                    };
+                }
+            }
+
+            console.log('   No duplicate match - proceeding with normal detection\n');
 
             console.log('\n═══════════════════════════════════════════════════════');
             console.log('🔍 MULTI-PASS DETECTION WITH VERIFICATION');
