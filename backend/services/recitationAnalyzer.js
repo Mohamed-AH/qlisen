@@ -11,6 +11,7 @@ class RecitationAnalyzer {
         this.quranService = quranService;
         this.preprocessor = new TextPreprocessor();
         this.fastPathIndex = null;
+        this.duplicatesRegistry = null; // Loaded lazily
         // Don't build index in constructor - will be built lazily on first use
     }
 
