@@ -230,9 +230,9 @@ class WhisperService {
             form.append('task', 'transcribe');
             form.append('language', 'ar');
 
-            // Request verbose JSON to get segments and word timestamps
-            // Options: txt, vtt, srt, tsv, json, verbose_json
-            form.append('output', 'verbose_json');
+            // Request JSON output to get segments and word timestamps
+            // Valid options: txt, vtt, srt, tsv, json
+            form.append('output', 'json');
 
             // OPTIMIZATION 1: Quranic initial prompt
             // Provides vocabulary context to improve accuracy for Classical Arabic
@@ -243,16 +243,14 @@ class WhisperService {
 
             // OPTIMIZATION 2: Enable word-level timestamps
             // Essential for error detection and verse boundary identification
-            // Try multiple parameter formats - API might use different names
-            form.append('word_timestamps', 'True');        // Python boolean format
-            form.append('word_level_timestamps', 'True');  // Alternative name
-            form.append('encode', 'true');                 // Some APIs need this
+            // NOTE: word_timestamps is boolean, only works with faster_whisper engine
+            form.append('word_timestamps', 'true');    // Boolean (lowercase for FormData)
 
             // OPTIMIZATION 3: Optimize inference parameters
             form.append('temperature', '0.0');         // Deterministic output (no creativity)
             form.append('beam_size', '10');            // Higher accuracy (default is 5)
             form.append('best_of', '5');               // Sample 5 times, pick best
-            form.append('vad_filter', 'True');         // Voice Activity Detection filter
+            form.append('vad_filter', 'true');         // Voice Activity Detection filter (boolean)
 
             console.log('🎯 Using optimized parameters: small model + beam_size=10 + Quranic prompt');
 
