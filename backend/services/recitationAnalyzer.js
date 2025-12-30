@@ -1596,6 +1596,22 @@ class RecitationAnalyzer {
         };
 
         // Apply strict verification rules
+        // EXCELLENT ACCURACY: If both sequential and coverage are excellent (≥85%),
+        // be more lenient with ratio to account for user corrections/repeats
+        if ((sequential >= 0.85 || coverage >= 0.85) && countRatio <= 3.0) {
+            const bothExcellent = sequential >= 0.85 && coverage >= 0.85;
+            const confidence = bothExcellent && countRatio <= 1.5 ? 'high' :
+                              bothExcellent ? 'medium' : 'medium';
+
+            console.log(`✅ Position VERIFIED (${confidence === 'high' ? 'High' : 'Medium'} Confidence)`);
+            return {
+                verified: true,
+                confidence: confidence,
+                scores: { sequential, coverage, countRatio },
+                verseClassification
+            };
+        }
+
         // HIGH CONFIDENCE: Sequential ≥85%, ratio 0.8-1.2, coverage ≥80%
         if (sequential >= 0.85 && countRatio >= 0.8 && countRatio <= 1.2 && coverage >= 0.80) {
             console.log(`✅ Position VERIFIED (High Confidence)`);
@@ -1946,6 +1962,18 @@ class RecitationAnalyzer {
             console.log(`📥 Raw transcript length: ${rawTranscript.length} chars`);
             console.log(`📥 Raw transcript:\n${rawTranscript.substring(0, 200)}${rawTranscript.length > 200 ? '...' : ''}\n`);
 
+            // Early validation: Check if input contains Arabic text
+            if (!this.preprocessor.isArabicText(rawTranscript)) {
+                console.log('❌ EARLY VALIDATION FAILED: No Arabic text detected');
+                return {
+                    success: false,
+                    error: 'non_arabic_input',
+                    message: 'No Arabic text detected in transcription. Please recite Quran in Arabic.',
+                    inputLength: rawTranscript.length
+                };
+            }
+            console.log('✅ Arabic text detected - proceeding with analysis\n');
+
             // Preprocessing
             const preprocessed = this.preprocessor.preprocess(rawTranscript);
 
@@ -2047,8 +2075,14 @@ class RecitationAnalyzer {
             if (ngramResult.success && ngramResult.primarySurah) {
                 console.log(`   Candidate: ${ngramResult.primarySurah.name} (confidence: ${(ngramResult.primarySurah.confidence * 100).toFixed(1)}%)`);
 
-                // For n-gram: First detect verse range, THEN verify
-                console.log('   Detecting verse range within surah...');
+                // Check minimum confidence threshold (5%)
+                // Low confidence results are likely wrong surah identifications
+                const MIN_NGRAM_CONFIDENCE = 0.05; // 5%
+                if (ngramResult.primarySurah.confidence < MIN_NGRAM_CONFIDENCE) {
+                    console.log(`   ❌ Confidence too low (${(ngramResult.primarySurah.confidence * 100).toFixed(1)}% < ${(MIN_NGRAM_CONFIDENCE * 100).toFixed(0)}%) - skipping this candidate\n`);
+                } else {
+                    // For n-gram: First detect verse range, THEN verify
+                    console.log('   Detecting verse range within surah...');
                 const alignmentResult = await this.alignToVerses(
                     analyzableText,
                     ngramResult.primarySurah.id
@@ -2104,19 +2138,22 @@ class RecitationAnalyzer {
                         bestVerification = verification;
                     }
 
-                    // 🔬 DEBUG MODE: Proceed to detailed analysis even on rejection
-                    console.log('🔬 DEBUG MODE: Proceeding to detailed analysis despite rejection...\n');
-                    console.log('✅ PASS 2 ACCEPTED (DEBUG OVERRIDE) - Proceeding with n-gram result\n');
+                    // DEBUG MODE: Only override rejection in development
+                    const debugMode = process.env.ANALYSIS_DEBUG_MODE === 'true';
 
-                    return await this.performDetailedAnalysis(
-                        analyzableText,
-                        ngramResult.primarySurah.id,
-                        verseRange.startVerse,
-                        verseRange.endVerse,
-                        {
-                            ...metadata,
-                            detectionMethod: 'ngram_debug',
-                            confidence: 'debug_low',  // Mark as debug/low confidence
+                    if (debugMode) {
+                        console.log('🔬 DEBUG MODE: Proceeding to detailed analysis despite rejection...\n');
+                        console.log('✅ PASS 2 ACCEPTED (DEBUG OVERRIDE) - Proceeding with n-gram result\n');
+
+                        return await this.performDetailedAnalysis(
+                            analyzableText,
+                            ngramResult.primarySurah.id,
+                            verseRange.startVerse,
+                            verseRange.endVerse,
+                            {
+                                ...metadata,
+                                detectionMethod: 'ngram_debug',
+                                confidence: 'debug_low',  // Mark as debug/low confidence
                             verificationScores: verification.scores,
                             pipelineStart
                         },
@@ -2124,6 +2161,8 @@ class RecitationAnalyzer {
                         preprocessed.normalized
                     );
                 }
+                } // Close else block for verification.verified
+                } // Close else block for confidence check
             } else {
                 console.log(`   No n-gram candidate found\n`);
             }

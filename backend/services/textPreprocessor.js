@@ -324,6 +324,23 @@ class TextPreprocessor {
     }
 
     /**
+     * Check if text contains Arabic script
+     * Detects Arabic characters early to avoid processing non-Arabic input
+     * @param {string} text - Text to check
+     * @returns {boolean} True if text contains Arabic characters
+     */
+    isArabicText(text) {
+        if (!text || typeof text !== 'string' || text.trim().length === 0) {
+            return false;
+        }
+
+        // Check for Arabic characters (Unicode range U+0600 to U+06FF)
+        // This includes all Arabic letters, diacritics, and marks
+        const arabicRegex = /[\u0600-\u06FF]/;
+        return arabicRegex.test(text);
+    }
+
+    /**
      * Check if a word is garbage (should be removed)
      */
     isGarbageWord(word) {
