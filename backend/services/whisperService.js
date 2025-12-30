@@ -224,12 +224,31 @@ class WhisperService {
             // Step 2: Check if busy (optional - server will handle)
             // The Docker Whisper server processes one at a time
 
-            // Step 3: Send audio for transcription
+            // Step 3: Send audio for transcription with optimizations
             const form = new FormData();
             form.append('audio_file', fs.createReadStream(audioFilePath));
             form.append('task', 'transcribe');
             form.append('language', 'ar');
             form.append('output', 'json');
+
+            // OPTIMIZATION 1: Quranic initial prompt
+            // Provides vocabulary context to improve accuracy for Classical Arabic
+            const quranicPrompt = 'بسم الله الرحمن الرحيم. القرآن الكريم بالعربية الفصحى. ' +
+                                  'الله المؤمنين الكافرين الصلاة الزكاة الجنة النار القيامة ' +
+                                  'الرسول النبي الآيات السور التوبة الرحمة العذاب الإيمان';
+            form.append('initial_prompt', quranicPrompt);
+
+            // OPTIMIZATION 2: Enable word-level timestamps
+            // Essential for error detection and verse boundary identification
+            form.append('word_timestamps', 'true');
+
+            // OPTIMIZATION 3: Optimize inference parameters
+            form.append('temperature', '0');           // Deterministic output (no creativity)
+            form.append('beam_size', '10');            // Higher accuracy (default is 5)
+            form.append('best_of', '5');               // Sample 5 times, pick best
+            form.append('vad_filter', 'true');         // Voice Activity Detection filter
+
+            console.log('🎯 Using optimized parameters: small model + beam_size=10 + Quranic prompt');
 
             console.log('📤 Sending audio to remote server...');
             const startTime = Date.now();
@@ -256,12 +275,80 @@ class WhisperService {
                 throw new Error('Invalid response format from remote Whisper');
             }
 
+            // ENHANCEMENT: Extract word-level timestamps and metadata
+            let words = [];
+            let segments = [];
+            let totalDuration = 0;
+
+            if (response.data && response.data.segments) {
+                segments = response.data.segments;
+
+                // Flatten all words from all segments
+                for (const segment of segments) {
+                    if (segment.words && Array.isArray(segment.words)) {
+                        words = words.concat(segment.words.map(w => ({
+                            word: w.word ? w.word.trim() : '',
+                            start: w.start || 0,
+                            end: w.end || 0,
+                            confidence: w.probability || null
+                        })));
+                    }
+                }
+
+                // Calculate total duration from last segment
+                if (segments.length > 0) {
+                    totalDuration = segments[segments.length - 1].end || 0;
+                }
+            }
+
+            // Calculate overall confidence score
+            const avgConfidence = words.length > 0
+                ? words.reduce((sum, w) => sum + (w.confidence || 0), 0) / words.length
+                : null;
+
+            // Flag low-confidence words (potential transcription errors)
+            const LOW_CONFIDENCE_THRESHOLD = 0.7;
+            const lowConfidenceWords = words.filter(w => w.confidence && w.confidence < LOW_CONFIDENCE_THRESHOLD);
+
+            // Log quality metrics
+            console.log(`📊 Transcription quality:`);
+            console.log(`   Words: ${words.length}`);
+            console.log(`   Avg confidence: ${avgConfidence ? (avgConfidence * 100).toFixed(1) + '%' : 'N/A'}`);
+            console.log(`   Low confidence: ${lowConfidenceWords.length} words (${(lowConfidenceWords.length / Math.max(words.length, 1) * 100).toFixed(1)}%)`);
+            if (totalDuration > 0) {
+                console.log(`   Duration: ${totalDuration.toFixed(2)}s`);
+            }
+
             return {
                 success: true,
                 transcript: transcript.trim(),
                 processingTime,
                 method: 'remote',
-                remoteURL: this.remoteURL
+                remoteURL: this.remoteURL,
+
+                // NEW: Detailed metadata
+                metadata: {
+                    language: response.data.language || 'ar',
+                    duration: totalDuration,
+                    wordCount: words.length,
+                    avgConfidence: avgConfidence,
+                    modelUsed: this.modelName || 'small'
+                },
+
+                // NEW: Word-level data for error detection
+                words: words,
+                segments: segments,
+
+                // NEW: Quality indicators
+                quality: {
+                    lowConfidenceWords: lowConfidenceWords.map(w => ({
+                        word: w.word,
+                        timestamp: `${w.start.toFixed(2)}s`,
+                        confidence: w.confidence ? (w.confidence * 100).toFixed(1) + '%' : 'N/A'
+                    })),
+                    lowConfidenceCount: lowConfidenceWords.length,
+                    lowConfidencePercentage: (lowConfidenceWords.length / Math.max(words.length, 1) * 100).toFixed(1)
+                }
             };
 
         } catch (error) {

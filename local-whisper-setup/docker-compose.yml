@@ -15,8 +15,8 @@ services:
           cpus: '4.0'
           memory: 6G
         reservations:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '2.0'          # Increased for small model (better beam search)
+          memory: 3G           # Increased for small model (~2.3GB + buffer)
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/"]
