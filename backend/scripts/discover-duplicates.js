@@ -9,8 +9,8 @@ const fs = require('fs');
  *
  * Criteria:
  * - Multi-verse sequences (any length) with ≥4 total words
- * - Single verses with ≥10 words
- * - Excludes short formulas like "بسم الله"
+ * - Single verses with ≥5 words (lowered from 10 to catch more duplicates)
+ * - Excludes very short formulas like "بسم الله"
  *
  * Output: data/duplicates_registry.json
  */
@@ -102,8 +102,8 @@ function discoverDuplicates() {
                 const wordCount = countWords(normalizedText);
 
                 // Apply filtering criteria
-                if (seqLength === 1 && wordCount < 10) {
-                    // Single verse must have ≥10 words
+                if (seqLength === 1 && wordCount < 5) {
+                    // Single verse must have ≥5 words
                     break; // No point checking longer sequences starting here
                 }
 
