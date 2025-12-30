@@ -229,7 +229,10 @@ class WhisperService {
             form.append('audio_file', fs.createReadStream(audioFilePath));
             form.append('task', 'transcribe');
             form.append('language', 'ar');
-            form.append('output', 'json');
+
+            // Request verbose JSON to get segments and word timestamps
+            // Options: txt, vtt, srt, tsv, json, verbose_json
+            form.append('output', 'verbose_json');
 
             // OPTIMIZATION 1: Quranic initial prompt
             // Provides vocabulary context to improve accuracy for Classical Arabic
@@ -270,11 +273,32 @@ class WhisperService {
 
             // DEBUG: Log response structure to understand what we're getting
             console.log('🔍 DEBUG - Response structure:');
-            console.log(`   Keys in response.data: ${Object.keys(response.data || {}).join(', ')}`);
-            if (response.data && response.data.segments) {
-                console.log(`   Segments found: ${response.data.segments.length}`);
-                if (response.data.segments[0]) {
-                    console.log(`   First segment keys: ${Object.keys(response.data.segments[0]).join(', ')}`);
+            console.log(`   Type: ${typeof response.data}`);
+            console.log(`   Is string: ${typeof response.data === 'string'}`);
+            console.log(`   Is object: ${typeof response.data === 'object' && !Array.isArray(response.data)}`);
+
+            // Handle string response (parse if JSON)
+            let parsedData = response.data;
+            if (typeof response.data === 'string') {
+                console.log(`   Response is string, attempting to parse as JSON...`);
+                try {
+                    parsedData = JSON.parse(response.data);
+                    console.log(`   ✅ Successfully parsed JSON`);
+                    console.log(`   Keys in parsed data: ${Object.keys(parsedData).join(', ')}`);
+                } catch (e) {
+                    console.log(`   ⚠️  Not valid JSON, treating as plain text transcript`);
+                    parsedData = { text: response.data };
+                }
+            }
+
+            if (parsedData && parsedData.segments) {
+                console.log(`   ✅ Segments found: ${parsedData.segments.length}`);
+                if (parsedData.segments[0]) {
+                    console.log(`   First segment keys: ${Object.keys(parsedData.segments[0]).join(', ')}`);
+                    if (parsedData.segments[0].words) {
+                        console.log(`   ✅ Word-level timestamps available!`);
+                        console.log(`   First segment has ${parsedData.segments[0].words.length} words`);
+                    }
                 }
             } else {
                 console.log(`   ⚠️  No segments in response`);
@@ -282,10 +306,10 @@ class WhisperService {
 
             // Extract transcript from response
             let transcript = '';
-            if (response.data && response.data.text) {
-                transcript = response.data.text;
-            } else if (typeof response.data === 'string') {
-                transcript = response.data;
+            if (parsedData && parsedData.text) {
+                transcript = parsedData.text;
+            } else if (typeof parsedData === 'string') {
+                transcript = parsedData;
             } else {
                 throw new Error('Invalid response format from remote Whisper');
             }
@@ -295,8 +319,8 @@ class WhisperService {
             let segments = [];
             let totalDuration = 0;
 
-            if (response.data && response.data.segments) {
-                segments = response.data.segments;
+            if (parsedData && parsedData.segments) {
+                segments = parsedData.segments;
 
                 // Flatten all words from all segments
                 for (const segment of segments) {
@@ -343,7 +367,7 @@ class WhisperService {
 
                 // NEW: Detailed metadata
                 metadata: {
-                    language: response.data.language || 'ar',
+                    language: parsedData.language || 'ar',
                     duration: totalDuration,
                     wordCount: words.length,
                     avgConfidence: avgConfidence,
