@@ -229,6 +229,9 @@ class WhisperService {
             form.append('audio_file', fs.createReadStream(audioFilePath));
             form.append('task', 'transcribe');
             form.append('language', 'ar');
+
+            // Request JSON output to get segments and word timestamps
+            // Valid options: txt, vtt, srt, tsv, json
             form.append('output', 'json');
 
             // OPTIMIZATION 1: Quranic initial prompt
@@ -240,16 +243,14 @@ class WhisperService {
 
             // OPTIMIZATION 2: Enable word-level timestamps
             // Essential for error detection and verse boundary identification
-            // Try multiple parameter formats - API might use different names
-            form.append('word_timestamps', 'True');        // Python boolean format
-            form.append('word_level_timestamps', 'True');  // Alternative name
-            form.append('encode', 'true');                 // Some APIs need this
+            // NOTE: word_timestamps is boolean, only works with faster_whisper engine
+            form.append('word_timestamps', 'true');    // Boolean (lowercase for FormData)
 
             // OPTIMIZATION 3: Optimize inference parameters
             form.append('temperature', '0.0');         // Deterministic output (no creativity)
             form.append('beam_size', '10');            // Higher accuracy (default is 5)
             form.append('best_of', '5');               // Sample 5 times, pick best
-            form.append('vad_filter', 'True');         // Voice Activity Detection filter
+            form.append('vad_filter', 'true');         // Voice Activity Detection filter (boolean)
 
             console.log('🎯 Using optimized parameters: small model + beam_size=10 + Quranic prompt');
 
@@ -270,11 +271,32 @@ class WhisperService {
 
             // DEBUG: Log response structure to understand what we're getting
             console.log('🔍 DEBUG - Response structure:');
-            console.log(`   Keys in response.data: ${Object.keys(response.data || {}).join(', ')}`);
-            if (response.data && response.data.segments) {
-                console.log(`   Segments found: ${response.data.segments.length}`);
-                if (response.data.segments[0]) {
-                    console.log(`   First segment keys: ${Object.keys(response.data.segments[0]).join(', ')}`);
+            console.log(`   Type: ${typeof response.data}`);
+            console.log(`   Is string: ${typeof response.data === 'string'}`);
+            console.log(`   Is object: ${typeof response.data === 'object' && !Array.isArray(response.data)}`);
+
+            // Handle string response (parse if JSON)
+            let parsedData = response.data;
+            if (typeof response.data === 'string') {
+                console.log(`   Response is string, attempting to parse as JSON...`);
+                try {
+                    parsedData = JSON.parse(response.data);
+                    console.log(`   ✅ Successfully parsed JSON`);
+                    console.log(`   Keys in parsed data: ${Object.keys(parsedData).join(', ')}`);
+                } catch (e) {
+                    console.log(`   ⚠️  Not valid JSON, treating as plain text transcript`);
+                    parsedData = { text: response.data };
+                }
+            }
+
+            if (parsedData && parsedData.segments) {
+                console.log(`   ✅ Segments found: ${parsedData.segments.length}`);
+                if (parsedData.segments[0]) {
+                    console.log(`   First segment keys: ${Object.keys(parsedData.segments[0]).join(', ')}`);
+                    if (parsedData.segments[0].words) {
+                        console.log(`   ✅ Word-level timestamps available!`);
+                        console.log(`   First segment has ${parsedData.segments[0].words.length} words`);
+                    }
                 }
             } else {
                 console.log(`   ⚠️  No segments in response`);
@@ -282,10 +304,10 @@ class WhisperService {
 
             // Extract transcript from response
             let transcript = '';
-            if (response.data && response.data.text) {
-                transcript = response.data.text;
-            } else if (typeof response.data === 'string') {
-                transcript = response.data;
+            if (parsedData && parsedData.text) {
+                transcript = parsedData.text;
+            } else if (typeof parsedData === 'string') {
+                transcript = parsedData;
             } else {
                 throw new Error('Invalid response format from remote Whisper');
             }
@@ -295,8 +317,8 @@ class WhisperService {
             let segments = [];
             let totalDuration = 0;
 
-            if (response.data && response.data.segments) {
-                segments = response.data.segments;
+            if (parsedData && parsedData.segments) {
+                segments = parsedData.segments;
 
                 // Flatten all words from all segments
                 for (const segment of segments) {
@@ -343,7 +365,7 @@ class WhisperService {
 
                 // NEW: Detailed metadata
                 metadata: {
-                    language: response.data.language || 'ar',
+                    language: parsedData.language || 'ar',
                     duration: totalDuration,
                     wordCount: words.length,
                     avgConfidence: avgConfidence,
