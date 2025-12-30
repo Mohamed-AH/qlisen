@@ -1505,7 +1505,7 @@ class RecitationAnalyzer {
      * SMART ALIGNMENT: Detects and handles Skip/Misplaced/Repeated scenarios
      * Only verifies against PRESENT verses to avoid misalignment pollution
      */
-    verifyPositionStrict(fullTranscript, candidateVerses) {
+    verifyPositionStrict(fullTranscript, candidateVerses, ngramConfidence = null) {
         if (!candidateVerses || candidateVerses.length === 0) {
             return {
                 verified: false,
@@ -1572,6 +1572,33 @@ class RecitationAnalyzer {
         }
 
         if (presentVerses.length === 0) {
+            // SPECIAL CASE: High-confidence n-gram for mid-surah with very short snippets
+            // If n-gram detected the surah with high confidence (>30%), trust it even if
+            // no individual verse meets the threshold (e.g., 15.8% vs 20% for short snippets)
+            const HIGH_NGRAM_CONFIDENCE_THRESHOLD = 0.30; // 30%
+
+            if (isMidSurahSnippet && ngramConfidence !== null && ngramConfidence >= HIGH_NGRAM_CONFIDENCE_THRESHOLD) {
+                console.log(`\n✅ Position VERIFIED (High N-Gram Confidence - Low Confidence)`);
+                console.log(`   N-gram confidence ${(ngramConfidence * 100).toFixed(1)}% ≥ ${(HIGH_NGRAM_CONFIDENCE_THRESHOLD * 100).toFixed(0)}% - trusting n-gram despite low verse accuracy`);
+                console.log(`   Short mid-surah snippet with ${verseAnalysis.length} verse(s) below ${thresholdPercent}% accuracy`);
+
+                // Prepare verse classification
+                const verseClassification = {
+                    present: [],
+                    skipped: verseAnalysis.map(v => v.ayah),
+                    total: candidateVerses.length,
+                    isMidSurah: isMidSurahSnippet
+                };
+
+                return {
+                    verified: true,
+                    confidence: 'low',
+                    scores: { sequential: 0, coverage: 0, countRatio: 0 },
+                    verseClassification,
+                    ngramTrusted: true
+                };
+            }
+
             return {
                 verified: false,
                 confidence: 'very_low',
@@ -2179,7 +2206,8 @@ class RecitationAnalyzer {
                 // VERIFY using the detected verse range
                 const verification = this.verifyPositionStrict(
                     analyzableText,
-                    candidateVerses
+                    candidateVerses,
+                    ngramResult.primarySurah.confidence  // Pass n-gram confidence for high-confidence trust
                 );
 
                 if (verification.verified) {
