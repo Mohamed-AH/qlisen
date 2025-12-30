@@ -34,34 +34,42 @@ class RecitationAnalyzer {
         }
 
         for (const [surahId, firstAyah] of surahStarts.entries()) {
-            // Get first 2 verses of the surah
+            // Get first 5 verses of the surah (cover common recitation lengths)
             const surahVerses = this.quranService.quranData.filter(v => v.surah === surahId);
-            const firstVerses = surahVerses.slice(0, Math.min(2, surahVerses.length));
+            const surahName = surahVerses[0].surahName;
 
-            const surahName = firstVerses[0].surahName;
+            // Index multiple verse ranges to cover common recitation patterns
+            // Users often recite 1, 1-2, 1-3, or 1-5 verses from the beginning
+            const rangesToIndex = [
+                { count: 1, desc: 'آية' },      // Verse 1 only
+                { count: 2, desc: 'آيات' },     // Verses 1-2
+                { count: 3, desc: 'آيات' },     // Verses 1-3
+                { count: 5, desc: 'آيات' }      // Verses 1-5
+            ];
 
-            // Index JUST verse 1 separately (for single-verse recitations)
-            this.fastPathIndex.push({
-                type: 'surah_beginning',
-                surahId,
-                surahName,
-                startVerse: firstAyah,
-                endVerse: firstAyah,
-                text: firstVerses[0].textNormalized,
-                description: `بداية ${surahName} (آية ${firstAyah})`
-            });
+            for (const range of rangesToIndex) {
+                const versesToInclude = surahVerses.slice(0, Math.min(range.count, surahVerses.length));
 
-            // Also index verses 1+2 together (for longer recitations)
-            if (firstVerses.length >= 2) {
-                const combinedText = firstVerses.map(v => v.textNormalized).join(' ');
+                // Skip if we don't have enough verses
+                if (versesToInclude.length < range.count) {
+                    continue;
+                }
+
+                const combinedText = versesToInclude.map(v => v.textNormalized).join(' ');
+                const endAyah = versesToInclude[versesToInclude.length - 1].ayah;
+
+                const description = range.count === 1
+                    ? `بداية ${surahName} (آية ${firstAyah})`
+                    : `بداية ${surahName} (${range.desc} ${firstAyah}-${endAyah})`;
+
                 this.fastPathIndex.push({
                     type: 'surah_beginning',
                     surahId,
                     surahName,
                     startVerse: firstAyah,
-                    endVerse: firstVerses[1].ayah,
+                    endVerse: endAyah,
                     text: combinedText,
-                    description: `بداية ${surahName} (آيات ${firstAyah}-${firstVerses[1].ayah})`
+                    description
                 });
             }
         }
@@ -357,8 +365,10 @@ class RecitationAnalyzer {
                             score4 * weights['4gram']) / totalWeight;
 
             // Normalize by surah length (longer surahs get penalized)
-            // Use square root to soften the penalty (so it's not too harsh on medium surahs)
-            const lengthNormalizationFactor = Math.sqrt(surahLength / 10); // Divide by 10 for scaling
+            // Use logarithmic scale to balance long/short surahs better
+            // OLD: sqrt(surahLength/10) was too harsh (Baqarah: 5.35x, Naziat: 2.14x)
+            // NEW: log(surahLength+1)/2 is more balanced (Baqarah: 2.86x, Naziat: 1.92x)
+            const lengthNormalizationFactor = Math.log(surahLength + 1) / 2;
             const finalScore = rawScore / lengthNormalizationFactor;
 
             finalScores.set(surahId, finalScore);
@@ -1598,18 +1608,32 @@ class RecitationAnalyzer {
         // Apply strict verification rules
         // EXCELLENT ACCURACY: If both sequential and coverage are excellent (≥85%),
         // be more lenient with ratio to account for user corrections/repeats
-        if ((sequential >= 0.85 || coverage >= 0.85) && countRatio <= 3.0) {
-            const bothExcellent = sequential >= 0.85 && coverage >= 0.85;
-            const confidence = bothExcellent && countRatio <= 1.5 ? 'high' :
-                              bothExcellent ? 'medium' : 'medium';
+        if (sequential >= 0.85 || coverage >= 0.85) {
+            // High ratio (> 3.0) with excellent accuracy = Extended recitation
+            // User recited MORE verses than indexed (e.g., verses 1-10 vs indexed 1-2)
+            // This is GOOD - don't penalize for reciting additional correct verses
+            if (countRatio <= 3.0 || (countRatio > 3.0 && sequential >= 0.85 && coverage >= 0.85)) {
+                const bothExcellent = sequential >= 0.85 && coverage >= 0.85;
+                const isExtendedRecitation = countRatio > 3.0 && bothExcellent;
 
-            console.log(`✅ Position VERIFIED (${confidence === 'high' ? 'High' : 'Medium'} Confidence)`);
-            return {
-                verified: true,
-                confidence: confidence,
-                scores: { sequential, coverage, countRatio },
-                verseClassification
-            };
+                const confidence = bothExcellent && countRatio <= 1.5 ? 'high' :
+                                  bothExcellent && !isExtendedRecitation ? 'medium' :
+                                  isExtendedRecitation ? 'medium' : 'medium';
+
+                if (isExtendedRecitation) {
+                    console.log(`✅ Position VERIFIED (Extended Recitation - ${confidence === 'high' ? 'High' : 'Medium'} Confidence)`);
+                    console.log(`   User recited more verses than indexed (ratio: ${countRatio.toFixed(2)})`);
+                } else {
+                    console.log(`✅ Position VERIFIED (${confidence === 'high' ? 'High' : 'Medium'} Confidence)`);
+                }
+
+                return {
+                    verified: true,
+                    confidence: confidence,
+                    scores: { sequential, coverage, countRatio },
+                    verseClassification
+                };
+            }
         }
 
         // HIGH CONFIDENCE: Sequential ≥85%, ratio 0.8-1.2, coverage ≥80%
