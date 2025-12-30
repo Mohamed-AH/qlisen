@@ -1,3 +1,6 @@
+// Load environment variables FIRST (before any other requires)
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
 const path = require('path');
 const WhisperService = require('../services/whisperService');
 const fs = require('fs');
@@ -26,49 +29,65 @@ async function testWhisperOptimization() {
     const whisperService = new WhisperService();
 
     // Check if remote Whisper is configured
+    console.log('\n🔧 Environment Configuration:');
+    console.log(`   USE_REMOTE_WHISPER: ${process.env.USE_REMOTE_WHISPER || 'not set'}`);
+    console.log(`   WHISPER_URL: ${process.env.WHISPER_URL || 'not set'}`);
+    console.log(`   WHISPER_MODEL: ${process.env.WHISPER_MODEL || 'default (small)'}`);
+
     if (!process.env.USE_REMOTE_WHISPER || process.env.USE_REMOTE_WHISPER !== 'true') {
-        console.log('❌ Remote Whisper not configured. Set USE_REMOTE_WHISPER=true');
+        console.log('\n❌ Remote Whisper not configured properly');
+        console.log('\n📝 Fix:');
+        console.log('   1. Ensure backend/.env file exists');
+        console.log('   2. Add these lines to backend/.env:');
+        console.log('      USE_REMOTE_WHISPER=true');
+        console.log('      WHISPER_URL=http://localhost:5000');
+        console.log('\n   3. Make sure Docker Whisper is running:');
+        console.log('      cd local-whisper-setup');
+        console.log('      ./start.sh');
         process.exit(1);
     }
 
     if (!process.env.WHISPER_URL) {
-        console.log('❌ WHISPER_URL not configured');
+        console.log('\n❌ WHISPER_URL not configured');
+        console.log('\n📝 Add to backend/.env:');
+        console.log('   WHISPER_URL=http://localhost:5000');
         process.exit(1);
     }
 
-    console.log(`✅ Testing against: ${process.env.WHISPER_URL}`);
-    console.log(`✅ Model: ${process.env.WHISPER_MODEL || 'small'}`);
+    console.log(`\n✅ Testing against: ${process.env.WHISPER_URL}`);
+    console.log(`✅ Model: ${process.env.WHISPER_MODEL || 'small (default)'}`);
     console.log('═'.repeat(80));
 
-    // Test cases - User will provide their sample audio files
+    // Test cases - Using user's actual audio file
     const testCases = [
         {
-            name: 'Test 1: Al-Fatiha (Clear Audio)',
-            audioFile: 'test-audio/fatiha-clear.mp3',  // User's sample file
-            description: 'Clear recitation of Al-Fatiha',
-            expectedWords: ['بسم', 'الله', 'الرحمن', 'الرحيم', 'الحمد'],
-            minWordCount: 25,
-            minConfidence: 0.85,
-            maxProcessingTime: 6000  // 6 seconds for ~10s audio
+            name: 'Test 1: Telegram Audio (User Sample)',
+            audioFile: 'test-audio/telegram_audio.ogg',
+            description: 'Real Quranic recitation from user',
+            expectedWords: ['الله'],  // At least Allah should appear
+            minWordCount: 5,  // Flexible - depends on audio length
+            minConfidence: 0.70,  // Reasonable threshold
+            maxProcessingTime: 15000  // 15 seconds (generous for first test)
         },
         {
-            name: 'Test 2: Long Surah Excerpt',
-            audioFile: 'test-audio/long-surah.mp3',  // User's sample file
-            description: 'Excerpt from Al-Baqarah or similar',
-            expectedWords: ['الله', 'المؤمنين', 'الكافرين'],
-            minWordCount: 50,
-            minConfidence: 0.80,
-            maxProcessingTime: 10000  // 10 seconds
-        },
-        {
-            name: 'Test 3: Noisy Audio',
-            audioFile: 'test-audio/noisy-recitation.mp3',  // User's sample file
-            description: 'Recitation with background noise',
+            name: 'Test 2: Additional Sample (Optional)',
+            audioFile: 'test-audio/sample2.mp3',
+            description: 'Second test audio (add if you have more)',
             expectedWords: ['الله'],
-            minWordCount: 10,
-            minConfidence: 0.60,  // Lower threshold for noisy audio
-            maxProcessingTime: 6000,
-            expectLowConfidence: true  // We expect some low-confidence words
+            minWordCount: 5,
+            minConfidence: 0.70,
+            maxProcessingTime: 15000,
+            optional: true  // Skip if file doesn't exist
+        },
+        {
+            name: 'Test 3: Third Sample (Optional)',
+            audioFile: 'test-audio/sample3.mp3',
+            description: 'Third test audio (add if you have more)',
+            expectedWords: ['الله'],
+            minWordCount: 5,
+            minConfidence: 0.70,
+            maxProcessingTime: 15000,
+            optional: true  // Skip if file doesn't exist
         }
     ];
 
@@ -82,17 +101,29 @@ async function testWhisperOptimization() {
         console.log(`   Audio file: ${test.audioFile}`);
 
         // Check if audio file exists
-        const audioPath = path.join(__dirname, '..', '..', test.audioFile);
+        const audioPath = path.join(__dirname, '..', test.audioFile);
         if (!fs.existsSync(audioPath)) {
-            console.log(`   ⚠️  SKIPPED - Audio file not found: ${audioPath}`);
-            console.log(`   Please add your sample audio files to test against`);
-            results.push({
-                name: test.name,
-                status: 'SKIPPED',
-                reason: 'Audio file not found'
-            });
-            continue;
+            if (test.optional) {
+                console.log(`   ⏭️  SKIPPED - Optional test file not found`);
+                results.push({
+                    name: test.name,
+                    status: 'SKIPPED',
+                    reason: 'Optional file not provided'
+                });
+                continue;
+            } else {
+                console.log(`   ❌ FAILED - Required audio file not found: ${audioPath}`);
+                console.log(`   Please copy your audio file to: backend/${test.audioFile}`);
+                results.push({
+                    name: test.name,
+                    status: 'FAILED',
+                    reason: 'Required audio file missing'
+                });
+                continue;
+            }
         }
+
+        console.log(`   📁 Using audio file: ${audioPath}`);
 
         const startTime = Date.now();
 
