@@ -225,39 +225,43 @@ class WhisperService {
             // The Docker Whisper server processes one at a time
 
             // Step 3: Send audio for transcription with optimizations
+            // CRITICAL: Per API spec, only audio_file goes in form body
+            // All other parameters must be query parameters in the URL!
             const form = new FormData();
             form.append('audio_file', fs.createReadStream(audioFilePath));
-            form.append('task', 'transcribe');
-            form.append('language', 'ar');
 
-            // Request JSON output to get segments and word timestamps
-            // Valid options: txt, vtt, srt, tsv, json
-            form.append('output', 'json');
-
-            // OPTIMIZATION 1: Quranic initial prompt
-            // Provides vocabulary context to improve accuracy for Classical Arabic
+            // Build query parameters for the URL
+            // OPTIMIZATION 1: Quranic initial prompt for vocabulary context
             const quranicPrompt = 'بسم الله الرحمن الرحيم. القرآن الكريم بالعربية الفصحى. ' +
                                   'الله المؤمنين الكافرين الصلاة الزكاة الجنة النار القيامة ' +
                                   'الرسول النبي الآيات السور التوبة الرحمة العذاب الإيمان';
-            form.append('initial_prompt', quranicPrompt);
 
-            // OPTIMIZATION 2: Enable word-level timestamps
-            // Essential for error detection and verse boundary identification
-            // NOTE: word_timestamps is boolean, only works with faster_whisper engine
-            form.append('word_timestamps', 'true');    // Boolean (lowercase for FormData)
+            const queryParams = new URLSearchParams({
+                encode: 'true',                    // Encode audio through ffmpeg
+                task: 'transcribe',                // transcribe (not translate)
+                language: 'ar',                    // Arabic
+                initial_prompt: quranicPrompt,     // Quranic vocabulary context
+                word_timestamps: 'true',           // CRITICAL: Word-level timestamps
+                vad_filter: 'true',                // Voice Activity Detection
+                output: 'json',                    // JSON output (not txt!)
+                temperature: '0.0',                // Deterministic (no randomness)
+                beam_size: '10',                   // Higher accuracy (default 5)
+                best_of: '5'                       // Sample 5 times, pick best
+            });
 
-            // OPTIMIZATION 3: Optimize inference parameters
-            form.append('temperature', '0.0');         // Deterministic output (no creativity)
-            form.append('beam_size', '10');            // Higher accuracy (default is 5)
-            form.append('best_of', '5');               // Sample 5 times, pick best
-            form.append('vad_filter', 'true');         // Voice Activity Detection filter (boolean)
+            const requestURL = `${this.remoteURL}/asr?${queryParams.toString()}`;
 
             console.log('🎯 Using optimized parameters: small model + beam_size=10 + Quranic prompt');
+            console.log('📋 Query parameters:');
+            console.log(`   output=json, word_timestamps=true, vad_filter=true`);
+            console.log(`   temperature=0.0, beam_size=10, best_of=5`);
+            console.log(`   encode=true, task=transcribe, language=ar`);
+            console.log(`   initial_prompt=[Quranic context: ${quranicPrompt.substring(0, 50)}...]`);
 
             console.log('📤 Sending audio to remote server...');
             const startTime = Date.now();
 
-            const response = await axios.post(this.remoteURL + '/asr', form, {
+            const response = await axios.post(requestURL, form, {
                 headers: {
                     ...form.getHeaders()
                 },
@@ -269,11 +273,14 @@ class WhisperService {
             const processingTime = Date.now() - startTime;
             console.log(`✅ Remote transcription completed in ${processingTime}ms`);
 
-            // DEBUG: Log response structure to understand what we're getting
-            console.log('🔍 DEBUG - Response structure:');
-            console.log(`   Type: ${typeof response.data}`);
-            console.log(`   Is string: ${typeof response.data === 'string'}`);
-            console.log(`   Is object: ${typeof response.data === 'object' && !Array.isArray(response.data)}`);
+            // DEBUG: Log response structure and headers
+            console.log('🔍 DEBUG - Response details:');
+            console.log(`   Status: ${response.status} ${response.statusText}`);
+            console.log(`   Content-Type: ${response.headers['content-type']}`);
+            console.log(`   Asr-Engine: ${response.headers['asr-engine'] || 'not specified'}`);
+            console.log(`   Data type: ${typeof response.data}`);
+            console.log(`   Data length: ${typeof response.data === 'string' ? response.data.length : 'N/A'} chars`);
+            console.log(`   First 200 chars: ${typeof response.data === 'string' ? response.data.substring(0, 200) : 'N/A'}`);
 
             // Handle string response (parse if JSON)
             let parsedData = response.data;
@@ -284,9 +291,13 @@ class WhisperService {
                     console.log(`   ✅ Successfully parsed JSON`);
                     console.log(`   Keys in parsed data: ${Object.keys(parsedData).join(', ')}`);
                 } catch (e) {
-                    console.log(`   ⚠️  Not valid JSON, treating as plain text transcript`);
+                    console.log(`   ⚠️  Not valid JSON: ${e.message}`);
+                    console.log(`   ⚠️  Treating as plain text transcript`);
                     parsedData = { text: response.data };
                 }
+            } else if (typeof response.data === 'object') {
+                console.log(`   ✅ Response is already an object`);
+                console.log(`   Keys: ${Object.keys(response.data).join(', ')}`);
             }
 
             if (parsedData && parsedData.segments) {
