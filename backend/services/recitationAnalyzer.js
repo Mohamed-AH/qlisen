@@ -1528,6 +1528,14 @@ class RecitationAnalyzer {
         console.log(`\n🧠 SMART ALIGNMENT: Verse-Level Pre-Analysis`);
         console.log('─'.repeat(55));
 
+        // Detect mid-surah snippets EARLY (before filtering) to use appropriate thresholds
+        const firstVerse = candidateVerses.length > 0 ? candidateVerses[0].ayah : 1;
+        const isMidSurahSnippet = firstVerse > 1;
+
+        // Use relaxed threshold for mid-surah snippets (20% vs 40%)
+        // N-gram already detected the correct surah, so trust it more
+        const verseAccuracyThreshold = isMidSurahSnippet ? 0.20 : 0.40;
+
         // STEP 1: Analyze each verse individually to detect presence
         const verseAnalysis = [];
         for (const verse of candidateVerses) {
@@ -1540,7 +1548,7 @@ class RecitationAnalyzer {
                 wordCount: verseWords.length,
                 wordsMatched: alignment.matched,
                 words: verseWords,
-                status: alignment.accuracy >= 0.40 ? 'present' : 'skipped'
+                status: alignment.accuracy >= verseAccuracyThreshold ? 'present' : 'skipped'
             });
         }
 
@@ -1554,16 +1562,20 @@ class RecitationAnalyzer {
         const presentVerses = verseAnalysis.filter(v => v.status === 'present');
         const skippedVerses = verseAnalysis.filter(v => v.status === 'skipped');
 
+        const thresholdPercent = (verseAccuracyThreshold * 100).toFixed(0);
         console.log(`\n🔧 Smart Filtering:`);
         console.log(`   Total verses in range: ${candidateVerses.length}`);
-        console.log(`   Present verses (≥40%): ${presentVerses.length} [${presentVerses.map(v => v.ayah).join(', ')}]`);
-        console.log(`   Skipped verses (<40%): ${skippedVerses.length}${skippedVerses.length > 0 ? ` [${skippedVerses.map(v => v.ayah).join(', ')}]` : ''}`);
+        console.log(`   Present verses (≥${thresholdPercent}%): ${presentVerses.length} [${presentVerses.map(v => v.ayah).join(', ')}]`);
+        console.log(`   Skipped verses (<${thresholdPercent}%): ${skippedVerses.length}${skippedVerses.length > 0 ? ` [${skippedVerses.map(v => v.ayah).join(', ')}]` : ''}`);
+        if (isMidSurahSnippet) {
+            console.log(`   📍 Mid-surah snippet: using relaxed threshold (${thresholdPercent}% vs 40%)`);
+        }
 
         if (presentVerses.length === 0) {
             return {
                 verified: false,
                 confidence: 'very_low',
-                reason: 'No verses present (all below 40% accuracy)'
+                reason: `No verses present (all below ${thresholdPercent}% accuracy)`
             };
         }
 
@@ -1598,14 +1610,19 @@ class RecitationAnalyzer {
         console.log(`   Coverage: ${(coverage * 100).toFixed(1)}%`);
         console.log(`   Word count ratio: ${countRatio.toFixed(2)} (transcript: ${transcriptWords.length}, expected: ${expectedWords.length})`);
 
+        if (isMidSurahSnippet) {
+            console.log(`   📍 Mid-surah snippet detected (starts at verse ${firstVerse})`);
+        }
+
         // Prepare verse classification for return
         const verseClassification = {
             present: presentVerses.map(v => v.ayah),
             skipped: skippedVerses.map(v => v.ayah),
-            total: candidateVerses.length
+            total: candidateVerses.length,
+            isMidSurah: isMidSurahSnippet
         };
 
-        // Apply strict verification rules
+        // Apply verification rules (adjusted for mid-surah snippets)
         // EXCELLENT ACCURACY: If both sequential and coverage are excellent (≥85%),
         // be more lenient with ratio to account for user corrections/repeats
         if (sequential >= 0.85 || coverage >= 0.85) {
@@ -1656,6 +1673,43 @@ class RecitationAnalyzer {
                 scores: { sequential, coverage, countRatio },
                 verseClassification
             };
+        }
+
+        // MID-SURAH SNIPPET: Relaxed thresholds for mid-surah passages
+        // These snippets don't start at verse 1, so normal verification is too strict
+        // We trust the n-gram detection more and check if detected verses match well
+        if (isMidSurahSnippet && presentVerses.length > 0) {
+            // Check if the detected verses have good alignment
+            const avgAccuracyOfPresent = presentVerses.reduce((sum, v) => sum + v.accuracy, 0) / presentVerses.length;
+
+            // Accept if:
+            // 1. Sequential or coverage ≥ 35% (highly relaxed for mid-surah)
+            // 2. Detected verses have ≥ 20% average accuracy (VERY relaxed - trust n-gram)
+            // 3. At least 1 verse with decent accuracy
+            const goodAlignment = (sequential >= 0.35 || coverage >= 0.35);
+            const goodVerseAccuracy = avgAccuracyOfPresent >= 0.20;  // Lowered from 0.30 to 0.20
+            const hasVerses = presentVerses.length >= 1;
+
+            // DEBUG: Log mid-surah verification details
+            console.log(`   🔍 Mid-Surah Verification Details:`);
+            console.log(`      Present verses count: ${presentVerses.length}`);
+            console.log(`      Avg verse accuracy: ${(avgAccuracyOfPresent * 100).toFixed(1)}%`);
+            console.log(`      Good alignment (seq≥35% OR cov≥35%): ${goodAlignment} (seq=${(sequential*100).toFixed(1)}%, cov=${(coverage*100).toFixed(1)}%)`);
+            console.log(`      Good verse accuracy (≥20%): ${goodVerseAccuracy}`);
+            console.log(`      Has verses (≥1): ${hasVerses}`);
+            console.log(`      FINAL: ${goodAlignment && goodVerseAccuracy && hasVerses ? 'ACCEPT' : 'REJECT'}`);
+
+            if (goodAlignment && goodVerseAccuracy && hasVerses) {
+                console.log(`✅ Position VERIFIED (Mid-Surah Snippet - Medium Confidence)`);
+                console.log(`   Relaxed thresholds applied for mid-surah passage (starts at verse ${firstVerse})`);
+                console.log(`   Detected verses average accuracy: ${(avgAccuracyOfPresent * 100).toFixed(1)}%`);
+                return {
+                    verified: true,
+                    confidence: 'medium',
+                    scores: { sequential, coverage, countRatio },
+                    verseClassification
+                };
+            }
         }
 
         // LOW CONFIDENCE: Reject
