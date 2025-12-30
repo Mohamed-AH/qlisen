@@ -240,13 +240,16 @@ class WhisperService {
 
             // OPTIMIZATION 2: Enable word-level timestamps
             // Essential for error detection and verse boundary identification
-            form.append('word_timestamps', 'true');
+            // Try multiple parameter formats - API might use different names
+            form.append('word_timestamps', 'True');        // Python boolean format
+            form.append('word_level_timestamps', 'True');  // Alternative name
+            form.append('encode', 'true');                 // Some APIs need this
 
             // OPTIMIZATION 3: Optimize inference parameters
-            form.append('temperature', '0');           // Deterministic output (no creativity)
+            form.append('temperature', '0.0');         // Deterministic output (no creativity)
             form.append('beam_size', '10');            // Higher accuracy (default is 5)
             form.append('best_of', '5');               // Sample 5 times, pick best
-            form.append('vad_filter', 'true');         // Voice Activity Detection filter
+            form.append('vad_filter', 'True');         // Voice Activity Detection filter
 
             console.log('🎯 Using optimized parameters: small model + beam_size=10 + Quranic prompt');
 
@@ -264,6 +267,18 @@ class WhisperService {
 
             const processingTime = Date.now() - startTime;
             console.log(`✅ Remote transcription completed in ${processingTime}ms`);
+
+            // DEBUG: Log response structure to understand what we're getting
+            console.log('🔍 DEBUG - Response structure:');
+            console.log(`   Keys in response.data: ${Object.keys(response.data || {}).join(', ')}`);
+            if (response.data && response.data.segments) {
+                console.log(`   Segments found: ${response.data.segments.length}`);
+                if (response.data.segments[0]) {
+                    console.log(`   First segment keys: ${Object.keys(response.data.segments[0]).join(', ')}`);
+                }
+            } else {
+                console.log(`   ⚠️  No segments in response`);
+            }
 
             // Extract transcript from response
             let transcript = '';
