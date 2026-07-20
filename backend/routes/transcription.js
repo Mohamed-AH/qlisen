@@ -3,6 +3,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const WhisperService = require('../services/whisperService');
+const tilawaService = require('../services/tilawaService'); // Singleton instance
 const RecitationAnalyzer = require('../services/recitationAnalyzer');
 const quranService = require('../services/quranService'); // Singleton instance
 const QueueService = require('../services/queueService');
@@ -15,9 +16,31 @@ const whisperService = new WhisperService();
 const queueService = new QueueService();
 const emailService = new EmailService();
 
+// Tilawa (offline, Quran-specialized) is the primary transcription engine
+// when its model assets are present; Whisper remains as a fallback for
+// startup/config issues (missing assets) or when explicitly disabled.
+const useTilawa = process.env.USE_TILAWA !== 'false' && tilawaService.isAvailable();
+
+/**
+ * Transcribe an audio file, preferring tilawa and falling back to Whisper.
+ */
+async function transcribeAudio(audioFilePath) {
+    if (useTilawa) {
+        console.log('\n🎯 Step 1: Attempting transcription (tilawa)...');
+        const result = await tilawaService.transcribeFile(audioFilePath);
+        if (result.success) return result;
+
+        console.log('⚠️  Tilawa transcription failed, falling back to Whisper:', result.error);
+    } else {
+        console.log('\n🎯 Step 1: Attempting transcription (whisper)...');
+    }
+
+    return whisperService.transcribeWithRetry(audioFilePath, 1); // Only 1 attempt
+}
+
 /**
  * POST /api/transcription/analyze
- * Upload audio file, transcribe with Whisper, and analyze Quran position
+ * Upload audio file, transcribe (tilawa, falling back to Whisper), and analyze Quran position
  * Supports queuing when Whisper is offline or busy
  */
 router.post('/analyze', upload.single('audio'), handleUploadError, async (req, res) => {
@@ -54,8 +77,7 @@ router.post('/analyze', upload.single('audio'), handleUploadError, async (req, r
         console.log('   Email:', userEmail || '(not provided)');
 
         // Step 1: Try to transcribe immediately
-        console.log('\n🎯 Step 1: Attempting transcription...');
-        const transcriptionResult = await whisperService.transcribeWithRetry(audioFilePath, 1); // Only 1 attempt
+        const transcriptionResult = await transcribeAudio(audioFilePath);
 
         // Check if should queue
         if (!transcriptionResult.success && transcriptionResult.shouldQueue) {
@@ -207,7 +229,7 @@ router.post('/transcribe-only', upload.single('audio'), handleUploadError, async
         audioFilePath = req.file.path;
         console.log('📥 Transcribing audio:', req.file.filename);
 
-        const result = await whisperService.transcribeWithRetry(audioFilePath);
+        const result = await transcribeAudio(audioFilePath);
 
         if (!result.success) {
             return res.status(500).json({
@@ -308,11 +330,18 @@ router.get('/health', (req, res) => {
 
     res.json({
         success: true,
+        primaryEngine: useTilawa ? 'tilawa' : 'whisper',
+        tilawa: {
+            available: tilawaService.isAvailable(),
+            active: useTilawa
+        },
         whisperConfigured: configured,
         mode,
-        message: configured
-            ? `Whisper transcription service is ready (${mode} mode)`
-            : 'Whisper not configured. Set environment variables.',
+        message: useTilawa
+            ? 'Tilawa (offline Quran ASR) is the primary transcription engine; Whisper is the fallback.'
+            : (configured
+                ? `Whisper transcription service is ready (${mode} mode)`
+                : 'Neither tilawa nor Whisper is configured.'),
         queue: queueService.getStats()
     });
 });
