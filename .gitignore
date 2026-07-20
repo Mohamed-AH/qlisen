@@ -26,3 +26,6 @@ npm-debug.log*
 # Build outputs
 dist/
 build/
+
+# Tilawa model assets (88MB+ binary, fetched via backend/scripts/fetch-tilawa-assets.js)
+backend/models/tilawa/
