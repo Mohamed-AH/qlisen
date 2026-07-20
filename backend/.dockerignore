@@ -1,0 +1,19 @@
+node_modules
+npm-debug.log
+
+# Model assets are fetched fresh during the Docker build itself, never
+# copied in from the host (keeps the image reproducible, avoids baking in
+# a stale local copy).
+models/tilawa
+
+# Local dev artifacts - not part of the deployed image (uploads/ is
+# recreated at startup by middleware/audioUpload.js)
+uploads
+test-audio
+tests
+*.md
+.env
+.env.local
+
+.git
+.gitignore

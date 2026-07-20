@@ -17,6 +17,7 @@ const recitationRoutes = require('./routes/recitation');
 const transcriptionRoutes = require('./routes/transcription');
 const QueueService = require('./services/queueService');
 const QueueProcessor = require('./services/queueProcessor');
+const QlisenTelegramBot = require('./bot/telegramBot');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -24,6 +25,10 @@ const PORT = process.env.PORT || 5001;
 // Initialize queue service and processor
 const queueService = new QueueService();
 const queueProcessor = new QueueProcessor(queueService);
+
+// Telegram bot runs in this same process/container when TELEGRAM_BOT_TOKEN
+// is set - its API calls go to localhost, never leaving the container.
+let telegramBot = null;
 
 // Middleware
 app.use(cors());
@@ -117,6 +122,15 @@ async function initializeServer() {
         app.listen(PORT, () => {
             console.log('\n✅ Server is running!');
             console.log(`📍 URL: http://localhost:${PORT}`);
+
+            // Start the Telegram bot in-process, if configured
+            if (process.env.TELEGRAM_BOT_TOKEN) {
+                const backendURL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+                telegramBot = new QlisenTelegramBot(process.env.TELEGRAM_BOT_TOKEN, backendURL);
+                telegramBot.start();
+            } else {
+                console.log('ℹ️  TELEGRAM_BOT_TOKEN not set - Telegram bot disabled');
+            }
             console.log('\n📚 Available endpoints:');
             console.log(`   GET  /health - Health check`);
             console.log(`   GET  /api/test/detect - Test position detection`);
@@ -152,19 +166,18 @@ async function initializeServer() {
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+function shutdown() {
     console.log('\n\n👋 Shutting down server...');
     queueProcessor.stop();
     console.log('⏹️  Queue processor stopped');
+    if (telegramBot) {
+        telegramBot.stop();
+    }
     process.exit(0);
-});
+}
 
-process.on('SIGTERM', () => {
-    console.log('\n\n👋 Shutting down server...');
-    queueProcessor.stop();
-    console.log('⏹️  Queue processor stopped');
-    process.exit(0);
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 // Start the server
 initializeServer();

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: qlisen-backend
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    plan: standard # onnxruntime-node needs real RAM; see RENDER_DEPLOY.md
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: USE_TILAWA
+        value: "true"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        value: noreply@qlisen.com
+      - key: FRONTEND_URL
+        sync: false
